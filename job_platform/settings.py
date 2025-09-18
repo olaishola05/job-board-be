@@ -93,8 +93,8 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ],
-    # 'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.CustomPageNumberPagination',
-    # 'PAGE_SIZE': 20,
+    'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.CursorPagination',
+    'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
@@ -109,7 +109,7 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'login': '10/hour',
     },
-    # 'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
+    
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 CORS_ALLOW_ALL_ORIGINS = True

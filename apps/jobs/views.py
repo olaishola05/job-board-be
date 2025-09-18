@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
 
-# from apps.core.pagination import CursorPagination
-from apps.core.permissions import IsOwnerOrReadOnly, IsEmployerOrReadOnly, IsAdminOrReadOnly
+from apps.core.pagination import CursorPagination
+from apps.core.permissions import IsEmployerOrReadOnly, IsAdminOrReadOnly
 from .models import (
     Job, JobApplication, SavedJob, JobView, JobAlert,
     JobCategory, JobType, Industry, Skill
@@ -23,7 +23,7 @@ from .search import JobSearchEngine
 class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.select_related('company', 'category', 'industry', 'created_by').prefetch_related('skills')
     permission_classes = [IsAuthenticatedOrReadOnly]
-    # Add pagination here if needed here
+    pagination_class = CursorPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = JobFilter
     search_fields = ['title', 'description', 'requirements', 'company__name']
@@ -244,8 +244,7 @@ class JobViewSet(viewsets.ModelViewSet):
 class JobApplicationViewSet(viewsets.ModelViewSet):
     serializer_class = JobApplicationDetailSerializer
     permission_classes = [IsAuthenticated]
-    
-    # add pagination here if needed
+    pagination_class = CursorPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = JobApplicationFilter
     filterset_fields = ['status', 'job__company']
@@ -322,8 +321,9 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
 class SavedJobViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SavedJobSerializer
     permission_classes = [IsAuthenticated]
-    
-    # add pagination here if needed
+    pagination_class = CursorPagination
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['saved_at', 'job__published_at']
     ordering = ['-saved_at']
     
     def get_queryset(self):
@@ -349,7 +349,7 @@ class SavedJobViewSet(viewsets.ReadOnlyModelViewSet):
 
 class JobAlertViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-    # add pagination here if needed
+    pagination_class = CursorPagination
     ordering = ['-created_at']
     
     def get_queryset(self):
