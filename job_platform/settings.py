@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from datetime import timedelta
+import os
 from pathlib import Path
 import dj_database_url
 from decouple import config, Csv
@@ -43,6 +45,7 @@ THIRD_PARTY_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'celery',
     
     # API Documentation
     'drf_yasg',
@@ -91,7 +94,7 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
     ],
     # 'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.CustomPageNumberPagination',
-    'PAGE_SIZE': 20,
+    # 'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
@@ -106,34 +109,47 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'login': '10/hour',
     },
-    'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
+    # 'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
 ]
 
+
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'Access-Control-Allow-Origin',
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -289,9 +305,16 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': r'/api/v[0-9]',
     'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    
+    # "SWAGGER_UI_SETTINGS": {
+        # "deepLinking": True,
+        # "persistAuthorization": True,
+        # "displayOperationId": True,
+        # ...
+    # },
     'SERVERS': [
         {'url': 'http://localhost:8000', 'description': 'Development server'},
-        {'url': 'http://127.0.0.1:8000', 'description': 'Local development server'},
+        # {'url': 'http://127.0.0.1:8000', 'description': 'Local development server'},
     ],
     'TAGS': [
         {'name': 'Authentication', 'description': 'User authentication endpoints'},
@@ -303,7 +326,7 @@ SPECTACULAR_SETTINGS = {
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
-        'Bearer': {
+      'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header'
@@ -355,22 +378,65 @@ LOGGING = {
     },
 }
 
-DEVS_APPS =[]
-if config('ENABLE_SILK_PROFILING', default=False):
-    DEVS_APPS += ['silk']
-    MIDDLEWARE.insert(0, 'silk.middleware.SilkyMiddleware')
-    SILKY_PYTHON_PROFILER = True
-    SILKY_PYTHON_PROFILER_BINARY = True
-    
-if config('ENABLE_DEBUG_TOOLBAR', default=False):
-    DEVS_APPS += ['debug_toolbar']
-    MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
-    
-    EBUG_TOOLBAR_CONFIG = {
-        'SHOW_TOOLBAR_CALLBACK': lambda request: DEBUG,
-        'SHOW_COLLAPSED': True,
-    }
+SITE_NAME = config('SITE_NAME', default='Job Board Platform')
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
-    INTERNAL_IPS = ['127.0.0.1', 'localhost', '0.0.0.0', '192.168.1.1']
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': config('SECRET_KEY'),
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'user',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    
+    'JTI_CLAIM': 'jti',
+    
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=15),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
+    
+    'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+    'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
+    'TOKEN_VERIFY_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenVerifySerializer',
+    'TOKEN_BLACKLIST_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenBlacklistSerializer',
+    'SLIDING_TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer',
+    'SLIDING_TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer',
+}
 
-INSTALLED_APPS += DEVS_APPS
+os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
+
+# CACHES = {
+    # 'default': {
+        # 'BACKEND': 'django_redis.cache.RedisCache',
+        # 'LOCATION': config('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        # 'OPTIONS': {
+            # 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        # },
+        # 'KEY_PREFIX': 'jobboard',
+        # 'TIMEOUT': 300,
+    # }
+# }
+
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
