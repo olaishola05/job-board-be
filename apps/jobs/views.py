@@ -1,16 +1,11 @@
-# apps/jobs/views.py
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, F, Count, Avg
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from datetime import timedelta
 
 # from apps.core.pagination import CursorPagination
-# from apps.core.permissions import IsOwnerOrReadOnly, IsEmployerOrReadOnly
+from apps.core.permissions import IsOwnerOrReadOnly, IsEmployerOrReadOnly, IsAdminOrReadOnly
 from .models import (
     Job, JobApplication, SavedJob, JobView, JobAlert,
     JobCategory, JobType, Industry, Skill
@@ -18,19 +13,19 @@ from .models import (
 from .serializers import (
     JobListSerializer, JobDetailSerializer, JobCreateUpdateSerializer,
     JobApplicationCreateSerializer, JobApplicationDetailSerializer, JobApplicationUpdateSerializer,
-    SavedJobSerializer, SavedJobCreateSerializer, JobAlertCreateUpdateSerializer, JobAlertDetailSerializer,
+    SavedJobSerializer, SavedJobCreateSerializer, JobAlertCreateUpdateSerializer, JobAlertDetailSerializer, JobSearchSerializer,
     JobViewCreateSerializer, BulkJobStatusUpdateSerializer, JobStatsSerializer,
     JobCategorySerializer, JobTypeSerializer, IndustrySerializer, SkillSerializer
 )
-# from .filters import JobFilter
-# from .search import JobSearchEngine
+from .filters import JobFilter, JobApplicationFilter
+from .search import JobSearchEngine
 
 class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.select_related('company', 'category', 'industry', 'created_by').prefetch_related('skills')
     permission_classes = [IsAuthenticatedOrReadOnly]
     # Add pagination here if needed here
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    # add JobFilter if implemented
+    filterset_class = JobFilter
     search_fields = ['title', 'description', 'requirements', 'company__name']
     ordering_fields = ['created_at', 'published_at', 'views_count', 'applications_count', 'application_deadline']
     ordering = ['-is_featured', '-published_at']
@@ -97,8 +92,8 @@ class JobViewSet(viewsets.ModelViewSet):
         
         serializer = JobListSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsEmployerOrReadOnly])
     def my_jobs(self, request):
         """Get user's own job postings"""
         queryset = self.get_queryset()
@@ -195,10 +190,15 @@ class JobViewSet(viewsets.ModelViewSet):
                 'updated_count': updated_count
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsEmployerOrReadOnly, IsAdminOrReadOnly])
     def stats(self, request):
         """Get job statistics for employer"""
+        if not request.user.is_employer() and not request.user.is_admin():
+            return Response(
+                {'error': 'Only employers, and admins can access this endpoint'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         queryset = self.get_queryset()
         
         stats = {
@@ -220,14 +220,34 @@ class JobViewSet(viewsets.ModelViewSet):
         serializer = JobStatsSerializer(stats)
         return Response(serializer.data)
     
-    # Add search action if using custom search engine here
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+      """Advanced job search with full-text search and relevance scoring"""
+      search_serializer = JobSearchSerializer(data=request.query_params)
+      if not search_serializer.is_valid():
+        return Response(search_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # Custom search engine for full-text search
+      search_engine = JobSearchEngine()
+      queryset = search_engine.search(
+        search_serializer.validated_data,
+        base_queryset=self.get_queryset().filter(status='published')
+    )
+    
+      page = self.paginate_queryset(queryset)
+      if page is not None:
+        serializer = JobListSerializer(page, many=True, context={'request': request})
+        return self.get_paginated_response(serializer.data)
+    
+      serializer = JobListSerializer(queryset, many=True, context={'request': request})
+      return Response(serializer.data)
 class JobApplicationViewSet(viewsets.ModelViewSet):
     serializer_class = JobApplicationDetailSerializer
     permission_classes = [IsAuthenticated]
     
     # add pagination here if needed
-    # add filtering here if needed
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_class = JobApplicationFilter
     filterset_fields = ['status', 'job__company']
     ordering_fields = ['applied_at', 'updated_at', 'score']
     ordering = ['-applied_at']
@@ -376,9 +396,8 @@ class JobAlertViewSet(viewsets.ModelViewSet):
 class JobCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = JobCategory.active.all()
     serializer_class = JobCategorySerializer
-# add filtering here if needed
-    # filter_backends = [filters.OrderingFilter]
-    # ordering = ['sort_order', 'name']
+    filter_backends = [filters.OrderingFilter]
+    ordering = ['sort_order', 'name']
     
     @action(detail=True, methods=['get'])
     def jobs(self, request, pk=None):
@@ -402,8 +421,8 @@ class JobTypeViewSet(viewsets.ReadOnlyModelViewSet):
 class IndustryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Industry.active.all()
     serializer_class = IndustrySerializer
-    # filter_backends = [filters.OrderingFilter]
-    # ordering = ['sort_order', 'name']
+    filter_backends = [filters.OrderingFilter]
+    ordering = ['sort_order', 'name']
 
     @action(detail=True, methods=['get'])
     def jobs(self, request, pk=None):
@@ -422,9 +441,9 @@ class IndustryViewSet(viewsets.ReadOnlyModelViewSet):
 class SkillViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Skill.active.all()
     serializer_class = SkillSerializer
-    # filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name']
-    # ordering = ['-popularity_score', 'name']
+    ordering = ['-popularity_score', 'name']
     
     @action(detail=False, methods=['get'])
     def popular(self, request):
