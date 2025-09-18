@@ -109,7 +109,7 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'login': '10/hour',
     },
-    
+    'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 CORS_ALLOW_ALL_ORIGINS = True
