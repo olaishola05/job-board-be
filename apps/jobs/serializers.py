@@ -412,3 +412,37 @@ class JobStatsSerializer(serializers.Serializer):
     avg_applications_per_job = serializers.FloatField()
     total_views = serializers.IntegerField()
     avg_views_per_job = serializers.FloatField()
+
+class JobSearchSerializer(serializers.Serializer):
+    q = serializers.CharField(required=False, help_text="Search query")
+    location = serializers.CharField(required=False)
+    remote_only = serializers.BooleanField(required=False)
+    job_type = serializers.MultipleChoiceField(
+        choices=Job.JOB_TYPES, required=False
+    )
+    experience_level = serializers.MultipleChoiceField(
+        choices=Job.EXPERIENCE_LEVELS, required=False
+    )
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=JobCategory.objects.all(), required=False
+    )
+    industry = serializers.PrimaryKeyRelatedField(
+        queryset=Industry.objects.all(), required=False
+    )
+    salary_min = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False
+    )
+    salary_max = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False
+    )
+    company = serializers.PrimaryKeyRelatedField(
+        queryset=Company.objects.all(), required=False
+    )
+    is_featured = serializers.BooleanField(required=False)
+    posted_days_ago = serializers.IntegerField(
+        required=False, min_value=1, help_text="Jobs posted within X days"
+    )
+    has_salary = serializers.BooleanField(required=False)
+    skills = serializers.PrimaryKeyRelatedField(
+        queryset=Skill.objects.all(), many=True, required=False
+    )

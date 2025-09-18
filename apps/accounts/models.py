@@ -181,6 +181,23 @@ class User(AbstractUser):
         count = unverified_users.count()
         unverified_users.delete()
         return count
+      
+    def get_full_name(self):
+        """Return full name or email if names not available"""
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name if full_name else self.email
+    
+    def is_employer(self):
+        """Check if user is an employer"""
+        return self.role == 'employer'
+    
+    def is_user(self):
+        """Check if user is a job seeker"""
+        return self.role == 'user'
+    
+    def is_admin(self):
+        """Check if user is an admin"""
+        return self.role == 'admin' or self.is_superuser
         
 class Profile(models.Model):
     """
