@@ -4,7 +4,23 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from .models import User, Profile, RefreshToken
 
-
+class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user model
+    """
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
+    
+    class Meta:
+        model = User
+        fields = (
+            'user', 'email', 'username', 'first_name', 'last_name', 'full_name',
+            'phone_number', 'role', 'is_verified', 'is_active', 'created_at',
+            'updated_at', 'last_login'
+        )
+        read_only_fields = (
+            'id', 'email', 'username', 'role', 'is_verified', 'is_active',
+            'created_at', 'updated_at', 'last_login'
+        )
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
     Serializer for user registration
