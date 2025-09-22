@@ -1,0 +1,59 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}New Job Alert - JobBoard{% endblock %}
+{% block header %}New Job Opportunities{% endblock %}
+
+{% block content %}
+<p>Hi {{ user.first_name }},</p>
+
+<p>We found {{ jobs|length }} new job{{ jobs|length|pluralize }} that match your interests:</p>
+
+{% for job in jobs %}
+<div style="border: 1px solid #ddd; border-radius: 5px; padding: 20px; margin: 15px 0; background-color: #f9f9f9;">
+  <h3 style="margin: 0 0 10px 0; color: #2563eb;">
+    <a href="{{ job.get_absolute_url }}" style="text-decoration: none; color: #2563eb;">{{ job.title }}</a>
+  </h3>
+
+  <p style="margin: 5px 0; font-weight: bold; color: #666;">
+    {{ job.company.name }} - {{ job.location }}
+  </p>
+
+  <p style="margin: 10px 0; color: #555;">
+    {{ job.description|truncatewords:30 }}
+  </p>
+
+  <div style="margin: 10px 0; font-size: 14px; color: #666;">
+    <span style="background-color: #e5e7eb; padding: 2px 8px; border-radius: 3px; margin-right: 5px;">
+      {{ job.get_job_type_display }}
+    </span>
+    <span style="background-color: #e5e7eb; padding: 2px 8px; border-radius: 3px; margin-right: 5px;">
+      {{ job.get_experience_level_display }}
+    </span>
+    {% if job.salary_range_display %}
+    <span style="background-color: #e5e7eb; padding: 2px 8px; border-radius: 3px;">
+      {{ job.salary_range_display }}
+    </span>
+    {% endif %}
+  </div>
+
+  <p style="text-align: right; margin: 15px 0 0 0;">
+    <a href="{{ job.get_absolute_url }}" class="button" style="font-size: 14px; padding: 8px 16px;">
+      View Job
+    </a>
+  </p>
+</div>
+{% endfor %}
+
+<p style="text-align: center; margin: 30px 0;">
+  <a href="{{ browse_jobs_url }}" class="button">Browse All Jobs</a>
+</p>
+
+<p style="font-size: 14px; color: #666; margin-top: 30px;">
+  You're receiving this because you have job alerts enabled.
+  <a href="{{ manage_alerts_url }}" style="color: #2563eb;">Manage your job alerts</a> or
+  <a href="{{ unsubscribe_url }}" style="color: #2563eb;">unsubscribe</a>.
+</p>
+
+<p>Best regards,<br>
+  The JobBoard Team</p>
+{% endblock %}

@@ -13,11 +13,10 @@ phone_regex = RegexValidator(
 
 def get_req_ip(request):
     """Get client IP address"""
-    ip_address, is_routable = get_client_ip(request)
+    ip_address, _ = get_client_ip(request)
     
     if ip_address is None:
       ip_address = '0.0.0.0'
-      is_routable = False
       
     return ip_address
 

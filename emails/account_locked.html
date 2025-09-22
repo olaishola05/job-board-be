@@ -1,0 +1,42 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Account Security Alert - {{ site_name }}{% endblock %}
+
+{% block content %}
+<h2>Account Security Alert</h2>
+
+<p>Hi {{ user.first_name }},</p>
+
+<div class="warning">
+  <strong>Security Alert:</strong> Your {{ site_name }} account has been temporarily locked due to multiple failed login
+  attempts.
+</div>
+
+<p>For your account's security, we've temporarily locked access to prevent unauthorized login attempts.</p>
+
+<p><strong>Account Details:</strong></p>
+<ul>
+  <li>Email: {{ user.email }}</li>
+  <li>Locked until: {{ locked_until|date:"F j, Y g:i A T" }}</li>
+</ul>
+
+<p><strong>What happens next:</strong></p>
+<ul>
+  <li>Your account will be automatically unlocked after the lock period expires</li>
+  <li>You can then try logging in again with the correct credentials</li>
+  <li>Make sure you're using the correct email and password</li>
+</ul>
+
+<p><strong>If this wasn't you:</strong></p>
+<ul>
+  <li>Someone may be trying to access your account</li>
+  <li>Consider changing your password once the account is unlocked</li>
+  <li>Contact our support team if you need immediate assistance</li>
+</ul>
+
+<p>If you need help or have concerns about your account security, please contact us at <a
+    href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+
+<p>Best regards,<br>
+  The {{ site_name }} Security Team</p>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Daily Security Report - {{ site_name }}{% endblock %}
+
+{% block content %}
+<h2>Daily Security Report</h2>
+<p><strong>Date:</strong> {{ date }}</p>
+
+<h3>Login Statistics</h3>
+<ul>
+  <li>Total login attempts: {{ total_attempts }}</li>
+  <li>Successful logins: {{ successful_logins }}</li>
+  <li>Failed attempts: {{ failed_attempts }}</li>
+</ul>
+
+<h3>Account Status</h3>
+<ul>
+  <li>Currently locked accounts: {{ locked_accounts }}</li>
+  <li>New registrations: {{ new_registrations }}</li>
+</ul>
+
+{% if failed_by_ip %}
+<h3>Top Failed Attempts by IP</h3>
+<table style="width: 100%; border-collapse: collapse;">
+  <thead>
+    <tr style="background: #f8f9fa;">
+      <th style="border: 1px solid #ddd; padding: 8px;">IP Address</th>
+      <th style="border: 1px solid #ddd; padding: 8px;">Failed Attempts</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in failed_by_ip %}
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;">{{ item.ip_address }}</td>
+      <td style="border: 1px solid #ddd; padding: 8px;">{{ item.count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<p>This is an automated security report for {{ site_name }}.</p>
+{% endblock %}
