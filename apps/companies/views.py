@@ -6,7 +6,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
 from django.core.cache import cache
-from django.shortcuts import get_object_or_404
 from datetime import timedelta
 
 from .models import Company, CompanyReview, CompanyAnalytics
@@ -19,11 +18,19 @@ from apps.core.permissions import IsOwnerOrReadOnly
 from apps.accounts.permissions import (
     IsEmployerOrAdmin, IsCompanyOwnerOrAdmin, IsAdminUser
 )
+from apps.core.pagination import StandardPagination
+from .filters import CompanyFilter
 
 class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.select_related('industry', 'created_by').prefetch_related('media')
-
-    def get_serializer_class(self):
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = StandardPagination
+    filterset_class = CompanyFilter
+    search_fields = ['name', 'description', 'location']
+    ordering_fields = ['name', 'created_at', 'rating', 'follower_count', 'job_count']
+    ordering = ['-is_featured', '-created_at']
+    
+    def get_serializer_class(self): # type: ignore
         if self.action == 'list':
             return CompanyListSerializer
         elif self.action in ['create', 'update', 'partial_update']:
@@ -39,7 +46,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsAdminUser()]
         return [IsAuthenticated()]
 
-    def get_queryset(self):
+    def get_queryset(self): # type: ignore
         user = self.request.user
         queryset = self.queryset.annotate(
             active_job_count=Count('jobs', filter=Q(jobs__status='published')),

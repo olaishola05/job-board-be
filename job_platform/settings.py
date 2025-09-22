@@ -150,6 +150,7 @@ CORS_ALLOW_METHODS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'apps.core.middleware.APILoggingMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -298,7 +299,20 @@ ALLOWED_DOCUMENT_EXTENSIONS = config('ALLOWED_DOCUMENT_EXTENSIONS', default=['pd
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Job Board Platform API',
-    'DESCRIPTION': 'A comprehensive job board platform with advanced features',
+    'DESCRIPTION': """
+      A comprehensive job board platform with advanced features
+      
+      - User Authentication (JWT)
+      - Job Listings with advanced filtering and search
+      - Company Profiles and Reviews
+      - Application Management
+      - Admin Dashboard for Moderation and Analytics
+      - API Documentation with Swagger and Redoc
+      - Rate Limiting and Throttling
+      - Asynchronous Task Processing with Celery
+      - Health Checks and Monitoring
+      - CORS Handling
+    """,
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
@@ -306,15 +320,8 @@ SPECTACULAR_SETTINGS = {
     'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     
-    # "SWAGGER_UI_SETTINGS": {
-        # "deepLinking": True,
-        # "persistAuthorization": True,
-        # "displayOperationId": True,
-        # ...
-    # },
     'SERVERS': [
         {'url': 'http://localhost:8000', 'description': 'Development server'},
-        # {'url': 'http://127.0.0.1:8000', 'description': 'Local development server'},
     ],
     'TAGS': [
         {'name': 'Authentication', 'description': 'User authentication endpoints'},
@@ -401,17 +408,13 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'user',
     'USER_ID_CLAIM': 'user_id',
     'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
-    
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
     'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
-    
     'JTI_CLAIM': 'jti',
-    
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=15),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
-    
     'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
     'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
     'TOKEN_VERIFY_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenVerifySerializer',
