@@ -130,9 +130,17 @@ class JobCreateUpdateSerializer(serializers.Serializer):
     requirements = serializers.CharField()
     responsibilities = serializers.CharField()
     benefits = serializers.CharField(required=False, allow_blank=True)
-    category = serializers.PrimaryKeyRelatedField(queryset=None, allow_null=True, required=False, read_only=True)
-    industry = serializers.PrimaryKeyRelatedField(queryset=None, allow_null=True, required=False, read_only=True)
-    skills = serializers.PrimaryKeyRelatedField(queryset=None, many=True, required=False, read_only=True)
+    category = serializers.PrimaryKeyRelatedField(
+      queryset=JobCategory.active.all(), allow_null=True, required=False
+    )
+    industry = serializers.PrimaryKeyRelatedField(
+      queryset=Industry.active.all(), allow_null=True, required=False
+    )
+    skills = serializers.PrimaryKeyRelatedField(
+      queryset=Skill.active.all(), 
+      many=True, 
+      required=False, 
+      )
     job_type = serializers.ChoiceField(choices=Job.JOB_TYPES)
     experience_level = serializers.ChoiceField(choices=Job.EXPERIENCE_LEVELS)
     location = serializers.CharField(max_length=200)
@@ -192,11 +200,11 @@ class JobCreateUpdateSerializer(serializers.Serializer):
         
         return instance
 
-class JobApplicationCreateSerializer(serializers.Serializer):
-    job = serializers.PrimaryKeyRelatedField(queryset=Job.objects.all())
-    cover_letter = serializers.CharField(required=False, allow_blank=True)
-    resume = serializers.FileField(required=False, allow_null=True)
-    
+class JobApplicationCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobApplication
+        fields = ['job', 'cover_letter', 'resume']
+
     def validate_job(self, value):
         if not value.is_active:
             raise serializers.ValidationError("This job is no longer accepting applications")
@@ -278,10 +286,10 @@ class JobAlertCreateUpdateSerializer(serializers.Serializer):
     keywords = serializers.CharField(max_length=500, required=False, allow_blank=True)
     location = serializers.CharField(max_length=200, required=False, allow_blank=True)
     remote_only = serializers.BooleanField(default=False)
-    job_types = serializers.PrimaryKeyRelatedField(queryset=None, many=True, required=False, read_only=True)
-    categories = serializers.PrimaryKeyRelatedField(queryset=None, many=True, required=False, read_only=True)
-    industries = serializers.PrimaryKeyRelatedField(queryset=None, many=True, required=False, read_only=True)
-    skills = serializers.PrimaryKeyRelatedField(queryset=None, many=True, required=False, read_only=True)
+    job_types = serializers.PrimaryKeyRelatedField(queryset=JobType.active.all(), many=True, required=False)
+    categories = serializers.PrimaryKeyRelatedField(queryset=JobCategory.active.all(), many=True, required=False)
+    industries = serializers.PrimaryKeyRelatedField(queryset=Industry.active.all(), many=True, required=False)
+    skills = serializers.PrimaryKeyRelatedField(queryset=Skill.active.all(), many=True, required=False)
     experience_levels = serializers.ListField(
         child=serializers.ChoiceField(choices=Job.EXPERIENCE_LEVELS),
         required=False,

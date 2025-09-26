@@ -253,7 +253,15 @@ class Profile(models.Model):
         """Return skills grouped by category"""
         return self.skills.select_related('category').order_by('category__name', 'name')
   
-      
+    def save(self, *args, **kwargs):
+        """Override save to include validation"""
+        try:
+          self.full_clean()
+        except ValidationError as e:
+          print(str(e))
+          if 'Salary expectation cannot be negative' in str(e):
+            self.salary_expectation = None
+        super().save(*args, **kwargs)
 class RefreshToken(models.Model):
     """
     Custom refresh token model for JWT authentication

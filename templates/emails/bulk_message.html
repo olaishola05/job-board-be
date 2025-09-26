@@ -1,0 +1,29 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Message from {{ sender.get_full_name }} - {{ job.title }}{% endblock %}
+
+{% block content %}
+<h2>Message regarding {{ job.title }}</h2>
+
+<p>Hello,</p>
+
+<p>You've received a message from <strong>{{ sender.get_full_name|default:sender.username }}</strong> at <strong>{{
+    job.company.name }}</strong> regarding your application for:</p>
+
+<div class="job-card">
+  <div class="job-title">{{ job.title }}</div>
+  <div class="company-name">{{ job.company.name }}</div>
+</div>
+
+<div style="background: #f8f9fa; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #007bff;">
+  {{ message|linebreaks }}
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{ site_url }}/applications/" class="button">View Your Applications</a>
+</div>
+
+<p>If you have any questions, you can reply directly to this email or contact the company through the job posting.</p>
+
+<p>Best regards,<br>The JobBoard Team</p>
+{% endblock %}

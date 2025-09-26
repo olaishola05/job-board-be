@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, post_delete, pre_save
+from django.db.models.signals import post_save, post_delete, pre_save, pre_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from .models import Company, Industry, CompanyFollow, CompanyReview, CompanyAnalytics
@@ -6,12 +6,14 @@ from apps.core.models import AuditLog
 from django.dispatch import Signal
 from django.db.models import F
 from django.core.cache import cache
-from .tasks import update_company_ratings
 from logging import getLogger
+from apps.core.services import send_html_email
+from django.conf import settings
 
 User = get_user_model()
 logger = getLogger(__name__)
 
+SITE_NAME = getattr(settings, 'SITE_NAME', 'Job Board Platform')
 
 @receiver(post_save, sender=Company)
 def log_company_changes(sender, instance, created, **kwargs):
@@ -29,7 +31,6 @@ def log_company_changes(sender, instance, created, **kwargs):
         'company_size': instance.company_size,
     }
     
-    # Add specific details for updates
     if not created:
         if hasattr(instance, '_changed_fields'):
             details['changed_fields'] = instance._changed_fields
@@ -42,21 +43,38 @@ def log_company_changes(sender, instance, created, **kwargs):
     )
     logger.info(f"Company {action}d: {instance.name}")
 
-
-@receiver(post_delete, sender=Company)
+@receiver(pre_delete, sender=Company)
 def log_company_deletion(sender, instance, **kwargs):
-    """Log company deletion"""
-    AuditLog.log_action(
-        user=getattr(instance, '_deleted_by', None),
-        action='delete',
-        obj=instance,
-        details={
-            'name': instance.name,
-            'location': instance.location,
-            'job_count': instance.jobs.count(),
-        }
-    )
-    logger.info(f"Company deleted: {instance.name} by")
+    """
+    Signal receiver to create an audit log entry when a Company is deleted.
+    Uses pre_delete to access related objects before they are removed.
+    """
+    try:
+        deleted_by_user = getattr(instance, '_deleted_by', None)
+
+        if deleted_by_user:
+            try:
+                # Count jobs before the company and its related jobs are deleted.
+                job_count = instance.jobs.count()
+            except Exception:
+                job_count = 0
+
+            AuditLog.log_action(
+                user=deleted_by_user,
+                action='delete',
+                obj=instance,
+                details={
+                    'name': instance.name,
+                    'location': instance.location,
+                    'job_count': job_count,
+                }
+            )
+            logger.info(f"Company '{instance.name}' (ID: {instance.pk}) marked for deletion by user {deleted_by_user.email}. Jobs to be deleted: {job_count}")
+        else:
+            logger.warning(f"Company '{instance.name}' deleted without a specified user via _deleted_by attribute.")
+
+    except Exception as e:
+        logger.error(f"Error logging company deletion for {instance.name}: {e}")
 
 
 @receiver(pre_save, sender=Company)
@@ -170,56 +188,38 @@ def clear_company_cache(sender, instance, **kwargs):
     ]
     cache.delete_many(cache_keys)
 
-@receiver(post_save, sender=CompanyFollow)
-def update_follower_count_on_follow(sender, instance, created, **kwargs):
-    """Update company follower count when followed"""
-    if created:
-        Company.objects.filter(pk=instance.company.pk).update(
-            follower_count=F('follower_count') + 1
-        )
-
-@receiver(post_delete, sender=CompanyFollow)
-def update_follower_count_on_unfollow(sender, instance, **kwargs):
-    """Update company follower count when unfollowed"""
-    Company.objects.filter(pk=instance.company.pk).update(
-        follower_count=F('follower_count') - 1
-    )
-
-@receiver(post_save, sender=CompanyReview)
-def update_company_rating_on_review(sender, instance, created, **kwargs):
-    """Update company rating when review is added/updated"""
-    if created or not created:
-        update_company_ratings.delay()
-
-@receiver(post_delete, sender=CompanyReview)
-def update_company_rating_on_review_delete(sender, instance, **kwargs):
-    """Update company rating when review is deleted"""
-    update_company_ratings.delay()
-
 @receiver(pre_save, sender=Company)
 def handle_company_approval(sender, instance, **kwargs):
     """Handle company approval workflow"""
     if instance.pk:
         try:
             old_instance = Company.objects.get(pk=instance.pk)
-            if (old_instance.approval_status != instance.approval_status and 
-                instance.approval_status == 'approved'):
-                from apps.core.utils import send_email
-                send_email(
-                    to_email=instance.created_by.email,
-                    template='emails/company_approved.html',
-                    context={'company': instance, 'user': instance.created_by},
-                    subject=f'Your company {instance.name} has been approved!'
-                )
+            if (old_instance.approval_status != instance.approval_status and instance.approval_status == 'approved'):
+              context = {
+                  'user': instance.created_by,
+                  'company': instance,
+                  'site_name': SITE_NAME,
+                  }
+                
+              subject = f'Your company {instance.name} has been approved!'
+                
+              send_html_email(
+                  subject=subject,
+                  template_name='emails/company_approved.html',
+                  recipient_list=[instance.created_by.email],
+                  context=context,
+              )
         except Company.DoesNotExist:
             logger.warning(f"Old instance for Company with id {instance.pk} does not exist.")
 
+           
 company_verified = Signal()
 company_featured = Signal()
 
 
 @receiver(company_verified)
-def handle_company_verification(sender, company, verified_by, **kwargs):
+def handle_company_verification(sender, 
+company, verified_by, **kwargs):
     """Handle company verification event"""
     AuditLog.log_action(
         user=verified_by,
@@ -234,7 +234,8 @@ def handle_company_verification(sender, company, verified_by, **kwargs):
 
 
 @receiver(company_featured)
-def handle_company_featured(sender, company, featured_by, **kwargs):
+def handle_company_featured(sender, company,
+featured_by, **kwargs):
     """Handle company featured event"""
     AuditLog.log_action(
         user=featured_by,

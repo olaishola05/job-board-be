@@ -1,0 +1,17 @@
+% extends "emails/base_email.html" %}
+% block title %}Company Monthly Report - {{ site_name }}{% endblock %}
+
+{% block content %}
+<h2>Monthly Performance Report for {{ company.name }}</h2>
+<p>Dear {{ company.created_by.first_name }},</p>
+<p>Here is your performance report for the month of {{ report_month }}:</p>
+<ul>
+  <li>Total Job Postings: {{ total_jobs }}</li>
+  <li>Total Applications Received: {{ total_applications }}</li>
+  <li>New Followers: {{ new_followers }}</li>
+</ul>
+<p>We hope this report helps you understand your company's performance on our platform.</p>
+
+<p>Best regards,<br>
+  The {{ site_name }} Team</p>
+{% endblock %}

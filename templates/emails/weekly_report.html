@@ -1,0 +1,60 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Weekly Job Performance Report{% endblock %}
+
+{% block content %}
+<h2>Your weekly job performance report</h2>
+
+<p>Hello {{ employer.get_full_name|default:employer.username }},</p>
+
+<p>Here's how your job postings performed this week ({{ week_start }} - today):</p>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.total_jobs }}</div>
+    <div class="stat-label">Active Jobs</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.new_applications }}</div>
+    <div class="stat-label">New Applications</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.total_views }}</div>
+    <div class="stat-label">Total Views</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.new_views }}</div>
+    <div class="stat-label">Views This Week</div>
+  </div>
+</div>
+
+{% if top_jobs %}
+<h3>Top Performing Jobs This Week</h3>
+{% for job in top_jobs %}
+<div class="job-card">
+  <div class="job-title">{{ job.title }}</div>
+  <div class="job-meta">
+    <strong>Applications this week:</strong> {{ job.weekly_applications }}<br>
+    <strong>Total applications:</strong> {{ job.applications_count }}<br>
+    <strong>Total views:</strong> {{ job.views_count }}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{ site_url }}/employer/dashboard/" class="button">View Full Dashboard</a>
+</div>
+
+<p><strong>Tips to improve performance:</strong></p>
+<ul>
+  <li>Add more specific skills to job descriptions</li>
+  <li>Consider making top jobs "featured" for more visibility</li>
+  <li>Share jobs on social media and professional networks</li>
+  <li>Respond quickly to applications to improve candidate experience</li>
+</ul>
+
+<p>Keep up the great work!</p>
+
+<p>Best regards,<br>The JobBoard Team</p>
+{% endblock %}

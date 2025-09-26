@@ -1,0 +1,59 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Application Update - {{ job.title }}{% endblock %}
+
+{% block content %}
+<h2>Application status update</h2>
+
+<p>Hello {{ application.applicant.get_full_name|default:application.applicant.username }},</p>
+
+<p>We have an update on your application:</p>
+
+<div class="job-card">
+  <div class="job-title">{{ job.title }}</div>
+  <div class="company-name">{{ job.company.name }}</div>
+  <div class="job-meta">
+    <strong>Status:</strong> <span style="color: #28a745; font-weight: bold;">{{ status_display }}</span><br>
+    <strong>Updated:</strong> {{ application.updated_at|date:"F d, Y at g:i A" }}<br>
+    <strong>Application ID:</strong> #{{ application.id }}
+  </div>
+</div>
+
+{% if new_status == 'under_review' %}
+<p>Great news! Your application is now under review. The hiring team is carefully considering your qualifications for
+  this role.</p>
+{% elif new_status == 'interview_scheduled' %}
+<p>Congratulations! You've been selected for an interview. The hiring team will contact you directly to schedule a time
+  that works for both parties.</p>
+{% elif new_status == 'interview_completed' %}
+<p>Thank you for completing your interview! The hiring team is now making their final decision and will be in touch
+  soon.</p>
+{% elif new_status == 'offer_made' %}
+<p>🎉 Congratulations! You've received a job offer. Please check your email for details from the hiring team, or log
+  into your dashboard for more information.</p>
+{% elif new_status == 'accepted' %}
+<p>🎉 Welcome aboard! Your application has been accepted. You should hear from the hiring team soon with next steps and
+  onboarding information.</p>
+{% elif new_status == 'rejected' %}
+<p>Thank you for your interest in this position. While we've decided to move forward with other candidates, we encourage
+  you to apply for other suitable roles in the future.</p>
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{ application_url }}" class="button">View Full Application</a>
+</div>
+
+{% if new_status == 'rejected' %}
+<p><strong>Keep going!</strong> Don't let this discourage you. Here are some suggestions:</p>
+<ul>
+  <li>Continue applying to relevant positions</li>
+  <li>Update your profile and resume</li>
+  <li>Set up job alerts for similar roles</li>
+  <li>Consider expanding your search criteria</li>
+</ul>
+{% endif %}
+
+<p>Best of luck in your job search!</p>
+
+<p>Best regards,<br>The JobBoard Team</p>
+{% endblock %}

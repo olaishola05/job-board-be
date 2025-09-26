@@ -1,0 +1,45 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Job Published - {{ job.title }}{% endblock %}
+
+{% block content %}
+<h2>Your job has been published!</h2>
+
+<p>Hello {{ job.created_by.get_full_name|default:job.created_by.username }},</p>
+
+<p>Great news! Your job posting has been successfully published and is now live on our platform.</p>
+
+<div class="job-card">
+  <div class="job-title">{{ job.title }}</div>
+  <div class="company-name">{{ job.company.name }}</div>
+  <div class="job-meta">
+    <strong>Location:</strong> {{ job.location }}{% if job.remote_allowed %} (Remote allowed){% endif %}<br>
+    <strong>Job Type:</strong> {{ job.get_job_type_display }}<br>
+    <strong>Experience Level:</strong> {{ job.get_experience_level_display }}<br>
+    {% if job.salary_range_display != "Competitive" %}
+    <strong>Salary:</strong> {{ job.salary_range_display }}<br>
+    {% endif %}
+    <strong>Published:</strong> {{ job.published_at|date:"F d, Y at g:i A" }}
+  </div>
+</div>
+
+<p>Your job is now visible to thousands of potential candidates. Here are some tips to maximize your reach:</p>
+
+<ul>
+  <li>Share the job on your company's social media</li>
+  <li>Add relevant skills to attract qualified candidates</li>
+  <li>Respond quickly to applications to maintain candidate interest</li>
+  <li>Consider making your job "featured" for increased visibility</li>
+</ul>
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{ job_url }}" class="button">View Your Job Posting</a>
+</div>
+
+<p>We'll send you notifications when candidates apply, and you can manage all applications from your employer dashboard.
+</p>
+
+<p>Best of luck with your hiring!</p>
+
+<p>The JobBoard Team</p>
+{% endblock %}

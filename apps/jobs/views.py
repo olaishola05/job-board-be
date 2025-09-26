@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
 
-from apps.core.pagination import CursorPagination
+from apps.core.pagination import CursorPagination, StandardPagination
 from apps.core.permissions import IsEmployerOrReadOnly, IsAdminOrReadOnly
 from .models import (
     Job, JobApplication, SavedJob, JobView, JobAlert,
@@ -19,12 +19,15 @@ from .serializers import (
 )
 from .filters import JobFilter, JobApplicationFilter
 from .search import JobSearchEngine
+from .tasks import send_application_received_notification, bulk_job_status_update
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.select_related('company', 'category', 'industry', 'created_by').prefetch_related('skills')
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [IsAuthenticatedOrReadOnly]
-    pagination_class = CursorPagination
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = StandardPagination
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = JobFilter
     search_fields = ['title', 'description', 'requirements', 'company__name']
     ordering_fields = ['created_at', 'published_at', 'views_count', 'applications_count', 'application_deadline']
@@ -121,18 +124,27 @@ class JobViewSet(viewsets.ModelViewSet):
                 {'error': 'This job is no longer accepting applications'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+            
+        data = request.data.copy()
+        data['job'] = job.id
+
         serializer = JobApplicationCreateSerializer(
-            data={**request.data, 'job': job.id},
+            data=data,
             context={'request': request}
         )
-        if serializer.is_valid():
-            application = serializer.save()
-            return Response(
-                JobApplicationDetailSerializer(application, context={'request': request}).data,
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not serializer.is_valid():
+            print("REQ DATA:", request.data)
+            print("REQ FILES:", request.FILES)
+            print("SER ERRORS:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        application = serializer.save()
+        send_application_received_notification.delay(application.id)
+        return Response(
+            JobApplicationDetailSerializer(application, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
     
     @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated])
     def save(self, request, pk=None):
@@ -185,6 +197,11 @@ class JobViewSet(viewsets.ModelViewSet):
         )
         if serializer.is_valid():
             updated_count = serializer.update_jobs()
+            ob_ids = [str(id) for id in serializer.validated_data['job_ids']]
+            status_value = serializer.validated_data['status']
+            
+            bulk_job_status_update.delay(ob_ids, status_value, request.user.user) # type: ignore
+
             return Response({
                 'message': f'{updated_count} jobs updated successfully',
                 'updated_count': updated_count
@@ -219,33 +236,12 @@ class JobViewSet(viewsets.ModelViewSet):
         
         serializer = JobStatsSerializer(stats)
         return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
-    def search(self, request):
-      """Advanced job search with full-text search and relevance scoring"""
-      search_serializer = JobSearchSerializer(data=request.query_params)
-      if not search_serializer.is_valid():
-        return Response(search_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # Custom search engine for full-text search
-      search_engine = JobSearchEngine()
-      queryset = search_engine.search(
-        search_serializer.validated_data,
-        base_queryset=self.get_queryset().filter(status='published')
-    )
-    
-      page = self.paginate_queryset(queryset)
-      if page is not None:
-        serializer = JobListSerializer(page, many=True, context={'request': request})
-        return self.get_paginated_response(serializer.data)
-    
-      serializer = JobListSerializer(queryset, many=True, context={'request': request})
-      return Response(serializer.data)
+      
 class JobApplicationViewSet(viewsets.ModelViewSet):
     serializer_class = JobApplicationDetailSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = CursorPagination
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    pagination_class = StandardPagination
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_class = JobApplicationFilter
     filterset_fields = ['status', 'job__company']
     ordering_fields = ['applied_at', 'updated_at', 'score']
@@ -321,7 +317,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
 class SavedJobViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SavedJobSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = CursorPagination
+    pagination_class = StandardPagination
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['saved_at', 'job__published_at']
     ordering = ['-saved_at']
@@ -346,108 +342,4 @@ class SavedJobViewSet(viewsets.ReadOnlyModelViewSet):
             'message': f'{deleted_count} saved jobs cleared',
             'deleted_count': deleted_count
         })
-
-class JobAlertViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    pagination_class = CursorPagination
-    ordering = ['-created_at']
-    
-    def get_queryset(self):
-        return JobAlert.objects.filter(user=self.request.user).prefetch_related(
-            'job_types', 'categories', 'industries', 'skills'
-        )
-    
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return JobAlertCreateUpdateSerializer
-        return JobAlertDetailSerializer
-    
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-    
-    @action(detail=True, methods=['post'])
-    def test_alert(self, request, pk=None):
-        """Test job alert and return matching jobs"""
-        alert = self.get_object()
-        matching_jobs = alert.get_matching_jobs()[:10]  # Limit to 10 for testing
         
-        from .serializers import JobListSerializer
-        jobs_data = JobListSerializer(matching_jobs, many=True, context={'request': request}).data
-        
-        return Response({
-            'alert_name': alert.name,
-            'matching_jobs_count': matching_jobs.count(),
-            'sample_jobs': jobs_data
-        })
-    
-    @action(detail=False, methods=['post'])
-    def trigger_alerts(self, request):
-        """Manually trigger job alerts (admin only)"""
-        if not request.user.is_admin():
-            return Response(
-                {'error': 'Only admins can trigger alerts'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # from .tasks import send_job_alerts
-        # send_job_alerts.delay()
-        return Response({'message': 'Job alerts triggered successfully'})
-
-class JobCategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = JobCategory.active.all()
-    serializer_class = JobCategorySerializer
-    filter_backends = [filters.OrderingFilter]
-    ordering = ['sort_order', 'name']
-    
-    @action(detail=True, methods=['get'])
-    def jobs(self, request, pk=None):
-        """Get jobs in this category"""
-        category = self.get_object()
-        jobs = Job.published.filter(category=category)
-        
-        page = self.paginate_queryset(jobs)
-        if page is not None:
-            serializer = JobListSerializer(page, many=True, context={'request': request})
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = JobListSerializer(jobs, many=True, context={'request': request})
-        return Response(serializer.data)
-
-class JobTypeViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = JobType.active.all()
-    serializer_class = JobTypeSerializer
-    ordering = ['sort_order', 'name']
-
-class IndustryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Industry.active.all()
-    serializer_class = IndustrySerializer
-    filter_backends = [filters.OrderingFilter]
-    ordering = ['sort_order', 'name']
-
-    @action(detail=True, methods=['get'])
-    def jobs(self, request, pk=None):
-        """Get jobs in this industry"""
-        industry = self.get_object()
-        jobs = Job.published.filter(industry=industry)
-        
-        page = self.paginate_queryset(jobs)
-        if page is not None:
-            serializer = JobListSerializer(page, many=True, context={'request': request})
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = JobListSerializer(jobs, many=True, context={'request': request})
-        return Response(serializer.data)
-
-class SkillViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Skill.active.all()
-    serializer_class = SkillSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name']
-    ordering = ['-popularity_score', 'name']
-    
-    @action(detail=False, methods=['get'])
-    def popular(self, request):
-        """Get popular skills"""
-        popular_skills = self.get_queryset().order_by('-popularity_score')[:20]
-        serializer = self.get_serializer(popular_skills, many=True)
-        return Response(serializer.data)

@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import dj_database_url
 from decouple import config, Csv
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -93,7 +94,7 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.CursorPagination',
+    'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.StandardPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
@@ -148,8 +149,8 @@ CORS_ALLOW_METHODS = [
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'apps.core.middleware.APILoggingMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -239,8 +240,8 @@ USE_I18N = config('USE_I18N', default=True, cast=bool)
 USE_L10N = config('USE_L10N', default=True, cast=bool)
 USE_TZ = config('USE_TZ', default=True, cast=bool)
 
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='pyamqp://guest@localhost//')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/3')
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='amqp://guest@localhost//')
+# CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/3')
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -252,6 +253,49 @@ CELERY_TASK_SOFT_TIME_LIMIT = 60  # 60 seconds
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-expired-tokens': {
+        'task': 'apps.accounts.tasks.cleanup_expired_tokens',
+        'schedule': crontab(hour=0, minute=0),  # Daily at midnight
+    },
+    'cleanup-unverified-accounts': {
+        'task': 'apps.accounts.tasks.cleanup_unverified_users',
+        'schedule': crontab(hour=1, minute=0),  # Daily at 1 AM
+    },
+    'unlock-suspended-accounts': {
+        'task': 'apps.accounts.tasks.unlock_accounts',
+        'schedule': crontab(minute='*/30'),  # every 30 minutes
+    },
+    'generate_security_report': {
+        'task': 'apps.accounts.tasks.generate_security_report',
+        'schedule': crontab(minute=0, hour=7),
+      },
+    'send-job-alerts': {
+    'task': 'apps.jobs.tasks.send_job_alerts',
+    'schedule': crontab(minute=0, hour=9),  # Daily at 9 AM
+  },
+  'check-job-expiration': {
+    'task': 'apps.jobs.tasks.check_job_expiration',
+    'schedule': crontab(minute=0, hour=10),  # Daily at 10 AM
+  },
+  'cleanup-old-job-views': {
+    'task': 'apps.jobs.tasks.cleanup_old_job_views',
+    'schedule': crontab(minute=0, hour=2),  # Daily at 2 AM
+  },
+  'update-job-stats': {
+    'task': 'apps.jobs.tasks.update_job_stats',
+    'schedule': crontab(minute=0, hour=3),  # Daily at 3 AM
+  },
+  'generate-weekly-reports': {
+    'task': 'apps.jobs.tasks.generate_weekly_reports',
+    'schedule': crontab(minute=0, hour=8, day_of_week=1),  # Monday at 8 AM
+  },
+  'generate-job-analytics': {
+    'task': 'apps.jobs.tasks.generate_job_analytics',
+    'schedule': crontab(minute=0, hour='*/2'),  # Every 2 hours
+  },
+}
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
@@ -290,7 +334,7 @@ ADMIN_URL = config('ADMIN_URL', default='admin/')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-FILE_UPLOAD_MAX_MEMORY_SIZE = config('MAX_UPLOAD_SIZE', default=10485760)  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760 # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = FILE_UPLOAD_MAX_MEMORY_SIZE
 FILE_UPLOAD_PERMISSIONS = 0o644
 ALLOWED_IMAGE_EXTENSIONS = config('ALLOWED_IMAGE_EXTENSIONS', default=['jpg', 'jpeg', 'png', 'webp'])
@@ -347,8 +391,10 @@ SWAGGER_SETTINGS = {
     'SHOW_REQUEST_HEADERS': True,
 }
 
-RATELIMIT_ENABLE = True
-RATELIMIT_USE_CACHE = 'default'
+SWAGGER_USE_COMPAT_RENDERERS = False
+
+# RATELIMIT_ENABLE = True
+# RATELIMIT_USE_CACHE = 'default'
 # RATELIMIT_VIEW = 'apps.core.views.ratelimited'
 
 JOB_BOARD_SETTINGS = {
@@ -424,22 +470,3 @@ SIMPLE_JWT = {
 }
 
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
-
-# CACHES = {
-    # 'default': {
-        # 'BACKEND': 'django_redis.cache.RedisCache',
-        # 'LOCATION': config('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-        # 'OPTIONS': {
-            # 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        # },
-        # 'KEY_PREFIX': 'jobboard',
-        # 'TIMEOUT': 300,
-    # }
-# }
-
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'

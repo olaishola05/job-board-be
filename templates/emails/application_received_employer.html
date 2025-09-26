@@ -1,0 +1,48 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}New Application - {{ job.title }}{% endblock %}
+
+{% block content %}
+<h2>🎉 New application received!</h2>
+
+<p>Hello {{ job.created_by.get_full_name|default:job.created_by.username }},</p>
+
+<p>You've received a new application for your job posting:</p>
+
+<div class="job-card">
+  <div class="job-title">{{ job.title }}</div>
+  <div class="company-name">{{ job.company.name }}</div>
+  <div class="job-meta">
+    <strong>Location:</strong> {{ job.location }}{% if job.remote_allowed %} (Remote allowed){% endif %}<br>
+    <strong>Job Type:</strong> {{ job.get_job_type_display }}<br>
+    <strong>Experience Level:</strong> {{ job.get_experience_level_display }}<br>
+    {% if job.salary_range_display != "Competitive" %}
+    <strong>Salary:</strong> {{ job.salary_range_display }}<br>
+    {% endif %}
+    <strong>Application Deadline:</strong> {{ job.application_deadline|date:"F d, Y at g:i A" }}
+  </div>
+</div>
+<p><strong>Applicant Details:</strong></p>
+<ul>
+  <li><strong>Name:</strong> {{ applicant.get_full_name|default:applicant.username }}</li>
+  <li><strong>Email:</strong> {{ applicant.email }}</li>
+  {% if applicant.profile.phone_number %}
+  <li><strong>Phone:</strong> {{ applicant.profile.phone_number }}</li>
+  {% endif %}
+  {% if applicant.profile.location %}
+  <li><strong>Location:</strong> {{ applicant.profile.location }}</li>
+  {% endif %}
+  {% if applicant.profile.resume %}
+  <li><strong>Resume:</strong> <a href="{{ applicant.profile.resume.url }}">Download</a></li>
+  {% endif %}
+  {% if applicant.profile.cover_letter %}
+  <li><strong>Cover Letter:</strong> {{ applicant.profile.cover_letter|linebreaks }}</li>
+  {% endif %}
+</ul>
+<p>You can review and manage this application from your employer dashboard.</p>
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{ applications_url }}" class="button">View Applications</a>
+  <a href="{{ job_url }}" class="button" style="background: #6c757d; margin-left: 10px;">View Job Posting</a>
+</div>
+<p>Best regards,<br>The JobBoard Team</p>
+{% endblock %}
