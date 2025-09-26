@@ -13,6 +13,30 @@ jobs:
       max-parallel: 4
       matrix:
         python-version: [3.10, 3.11, 3.12]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports:
+          - 5432:5432
+        # Add health checks so Django waits for Postgres
+        options: >-
+          --health-cmd="pg_isready -U test_user -d test_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      DJANGO_SETTINGS_MODULE: job_platform.settings
+      SECRET_KEY: test_secret_key
 
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +50,14 @@ jobs:
           pip install -r requirements.txt
       - name: Create reports directory
         run: mkdir -p reports
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U test_user; do
+            echo "Waiting for postgres..."
+            sleep 2
+          done
       - name: Run Tests
         run: |
+          python3 manage.py migrate
           pytest --cov=. --cov-report=xml --junitxml=reports/junit.xml
