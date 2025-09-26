@@ -184,35 +184,9 @@ WSGI_APPLICATION = 'job_platform.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {}
-# if config('DATABASE_URL', default='') != '':
-    # # DATABASES['default'] = dj_database_url.parse(config('DATABASE_URL'), conn_max_age=600, conn_health_checks=True)
-# else:
-    # DATABASES = {
-        # 'default': {
-            # 'ENGINE': 'django.db.backends.postgresql',
-            # 'NAME': config('POSTGRES_DB', default='job_board_db'),
-            # 'USER': config('POSTGRES_USER'),
-            # 'PASSWORD': config('POSTGRES_PASSWORD'),
-            # 'HOST': config('POSTGRES_HOST', default='localhost'),
-            # 'PORT': config('POSTGRES_PORT', default='5432'),
-        # },
-        # 
-        # 'OPTIONS': {
-            # 'connect_timeout': 60,
-            # 'options': '-c default_transaction_isolation=serializable'
-        # },
-        # 'CONN_MAX_AGE': 600,
-        # 'CONN_HEALTH_CHECKS': True,
-    # }
-    
 DATABASES = {}
 if config('DATABASE_URL', default='') != '':
-    DATABASES['default'] = dj_database_url.parse(
-        config('DATABASE_URL'),
-        conn_max_age=600,
-        conn_health_checks=True
-    )
+    DATABASES['default'] = dj_database_url.parse(config('DATABASE_URL'), conn_max_age=600, conn_health_checks=True)
 else:
     DATABASES = {
         'default': {
@@ -222,13 +196,14 @@ else:
             'PASSWORD': config('POSTGRES_PASSWORD'),
             'HOST': config('POSTGRES_HOST', default='localhost'),
             'PORT': config('POSTGRES_PORT', default='5432'),
-            'OPTIONS': {
-                'connect_timeout': 60,
-                'options': '-c default_transaction_isolation=serializable'
-            },
-            'CONN_MAX_AGE': 600,
-            'CONN_HEALTH_CHECKS': True,
-        }
+        },
+        
+        'OPTIONS': {
+            'connect_timeout': 60,
+            'options': '-c default_transaction_isolation=serializable'
+        },
+        'CONN_MAX_AGE': 600,
+        'CONN_HEALTH_CHECKS': True,
     }
 
 DATABASE_POOL_ARGS = {
