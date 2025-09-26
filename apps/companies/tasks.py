@@ -4,23 +4,27 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import Company, CompanyAnalytics
 from apps.jobs.models import Job, JobApplication
-from apps.core.utils import send_email
 from django.contrib.auth import get_user_model
+from apps.core.services import send_html_email
+from django.conf import settings
 
 User = get_user_model()
+
+SITE_NAME = getattr(settings, 'SITE_NAME', 'Job Board Platform')
 
 @shared_task
 def notify_company_creation(company_id):
     """Notify admin about new company creation"""
     try:
         company = Company.objects.get(id=company_id)
-        context = {'company': company, 'site_name': 'Job Board'}
+        context = {'company': company, 'site_name': SITE_NAME}
         if company.created_by and company.created_by.email:
-            send_email(
-                to_email=company.created_by.email,
-                template='emails/company_created.html',
-                context=context,
-                subject='Your company has been created!'
+            subject = f"Your company {company.name} has been created!"
+            send_html_email(
+              subject=subject,
+              template_name='emails/company_created.html',
+              recipient_list=[company.created_by.email],
+              context=context
             )
     except Company.DoesNotExist:
         print(f"Company with ID {company_id} does not exist.")
@@ -30,12 +34,15 @@ def send_company_approved_email(company_id):
     """Send email notification when a company is approved"""
     try:
         company = Company.objects.get(id=company_id)
+        context = {'company': company, 'site_name': SITE_NAME}
         if company.is_verified and company.created_by and company.created_by.email:
-            send_email(
-                to_email=company.created_by.email,
-                template='emails/company_approved.html',
-                context={'company': company},
-                subject='Your company has been approved!'
+            
+            subject=f"Your company {company.name} has been approved!"
+            send_html_email(
+              subject=subject,
+              template_name='emails/company_approved.html',
+              recipient_list=[company.created_by.email],
+              context=context
             )
     except Company.DoesNotExist:
         print(f"Company with ID {company_id} does not exist.")
@@ -45,13 +52,16 @@ def notify_company_rejection(company_id, reason):
     """Notify company creator about rejection"""
     try:
         company = Company.objects.get(id=company_id)
+        context={'company': company, 'reason': reason, 'site_name': SITE_NAME},
         if company.created_by and company.created_by.email:
-            send_email(
-                to_email=company.created_by.email,
-                template='emails/company_rejected.html',
-                context={'company': company, 'reason': reason},
-                subject='Your company has been rejected'
-            )
+            subject=f"Your company {company.name} has been approved!"
+            send_html_email(
+              subject=subject,
+              template_name='emails/company_rejected.html',
+              recipient_list=[company.created_by.email],
+              context=context
+          )
+            
     except Company.DoesNotExist:
         print(f"Company with ID {company_id} does not exist.")
 
@@ -86,14 +96,17 @@ def send_job_notification_email(user_id, job_id):
             'user': user,
             'job': job,
             'company': job.company,
+            'site_name': SITE_NAME
         }
         
-        send_email(
-            to_email=user.email,
-            template='emails/job_notification.html',
-            context=context,
-            subject=f'New job at {job.company.name}: {job.title}'
+        subject=f"New job at {job.company.name}: {job.title}"
+        send_html_email(
+          subject=subject,
+          template_name='emails/job_notification.html',
+          recipient_list=[user.email],
+          context=context,  
         )
+        
     except Exception as e:
         print(f"Failed to send job notification: {e}")
 
@@ -127,13 +140,13 @@ def generate_company_reports():
                 'jobs_count': company.jobs.filter(status='published').count(),
             }
             
-            context = {'company': company, 'report': report_data}
+            context = {'company': company, 'report': report_data, 'site_name': SITE_NAME}
 
-            send_email(
+            send_html_email(
                 subject=f'Monthly Report for {company.name}',
-                template='emails/company_monthly_report.html',
+                template_name='emails/company_monthly_report.html',
+                recipient_list=[company.created_by.email],
                 context=context,
-                to_email=[company.created_by.email],
             )
         except Exception as e:
             print(f"Failed to generate report for {company.name}: {e}")

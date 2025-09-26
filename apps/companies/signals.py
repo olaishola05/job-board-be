@@ -7,10 +7,13 @@ from django.dispatch import Signal
 from django.db.models import F
 from django.core.cache import cache
 from logging import getLogger
+from apps.core.services import send_html_email
+from django.conf import settings
 
 User = get_user_model()
 logger = getLogger(__name__)
 
+SITE_NAME = getattr(settings, 'SITE_NAME', 'Job Board Platform')
 
 @receiver(post_save, sender=Company)
 def log_company_changes(sender, instance, created, **kwargs):
@@ -191,15 +194,21 @@ def handle_company_approval(sender, instance, **kwargs):
     if instance.pk:
         try:
             old_instance = Company.objects.get(pk=instance.pk)
-            if (old_instance.approval_status != instance.approval_status and 
-                instance.approval_status == 'approved'):
-                from apps.core.utils import send_email
-                send_email(
-                    to_email=instance.created_by.email,
-                    template='emails/company_approved.html',
-                    context={'company': instance, 'user': instance.created_by},
-                    subject=f'Your company {instance.name} has been approved!'
-                )
+            if (old_instance.approval_status != instance.approval_status and instance.approval_status == 'approved'):
+              context = {
+                  'user': instance.created_by,
+                  'company': instance,
+                  'site_name': SITE_NAME,
+                  }
+                
+              subject = f'Your company {instance.name} has been approved!'
+                
+              send_html_email(
+                  subject=subject,
+                  template_name='emails/company_approved.html',
+                  recipient_list=[instance.created_by.email],
+                  context=context,
+              )
         except Company.DoesNotExist:
             logger.warning(f"Old instance for Company with id {instance.pk} does not exist.")
 

@@ -4,7 +4,7 @@ from django.contrib.auth.signals import user_logged_in, user_login_failed
 from .models import User, Profile
 from apps.core.models import AuditLog
 from ipware import get_client_ip
-from apps.core.utils import send_email
+from apps.core.services import send_html_email
 from logging import getLogger
 from .utils import log_login_attempt
 
@@ -77,11 +77,16 @@ def user_login_failed_handler(sender, credentials, request, **kwargs):
             user.increment_failed_attempts()
             
             if old_attempts < 5 and user.failed_login_attempts >= 5:
-                send_email(
+                context={
+                  'user': user, 
+                  'attempts': user.failed_login_attempts,
+                  'reason': "Account locked due to too many failed login attempt"
+                }
+                send_html_email(
                     subject="Alert: Multiple Failed Login Attempts",
-                    to_email=[user.email],
-                    template='emails/account_locked.html',
-                    context={'user': user, 'attempts': user.failed_login_attempts}
+                    template_name='emails/account_locked.html',
+                    recipient_list=[user.email],
+                    context=context
                 )
                 user.lock_account()
                 logger.warning(f"Account locked due to too many failed login attempts: {user.email}")

@@ -1,6 +1,5 @@
-# apps/jobs/tasks.py
 from celery import shared_task
-from django.core.mail import send_mail, send_mass_mail
+from django.core.mail import send_mass_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
@@ -9,12 +8,16 @@ from django.db.models import Q, Count
 from datetime import timedelta
 import logging
 from .models import Job, JobApplication, JobAlert, JobView, Skill
-from apps.core.utils import get_site_url
 from django.contrib.auth import get_user_model
+from apps.core.services import send_html_email
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+FRONTEND_URL = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+SITE_NAME = getattr(settings, 'SITE_NAME', 'Job Board Platform')
+SUPPORT_EMAIL = getattr(settings, 'SUPPORT_EMAIL', settings.DEFAULT_FROM_EMAIL)
 
 # Job Publishing Tasks
 @shared_task(bind=True, max_retries=3)
@@ -26,20 +29,16 @@ def send_job_published_notification(self, job_id):
         subject = f'Job Published: {job.title}'
         context = {
             'job': job,
-            'site_url': get_site_url(),
-            'job_url': f"{get_site_url()}/jobs/{job.slug}/"
+            'site_url': FRONTEND_URL,
+            'job_url': f"{FRONTEND_URL}/jobs/{job.slug}/",
+            'site_name': SITE_NAME
         }
         
-        html_message = render_to_string('emails/job_published.html', context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
+        send_html_email(
             subject=subject,
-            message=plain_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            template_name='emails/job_published.html',
             recipient_list=[job.created_by.email],
-            fail_silently=False
+            context=context
         )
         
         logger.info(f"Job published notification sent for job {job_id}")
@@ -60,21 +59,17 @@ def send_job_expiration_warning(self, job_id, days_until_expiration):
         context = {
             'job': job,
             'days_until_expiration': days_until_expiration,
-            'site_url': get_site_url(),
-            'job_url': f"{get_site_url()}/jobs/{job.slug}/",
-            'edit_url': f"{get_site_url()}/employer/jobs/{job.id}/edit/"
+            'site_url': FRONTEND_URL,
+            'job_url': f"{FRONTEND_URL}/jobs/{job.slug}/",
+            'edit_url': f"{FRONTEND_URL}/employer/jobs/{job.id}/edit/",
+            'site_name': SITE_NAME
         }
         
-        html_message = render_to_string('emails/job_expiration_warning.html', context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
+        send_html_email(
             subject=subject,
-            message=plain_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            template_name='emails/job_expiration_warning.html',
             recipient_list=[job.created_by.email],
-            fail_silently=False
+            context=context
         )
         
         logger.info(f"Job expiration warning sent for job {job_id}")
@@ -100,36 +95,27 @@ def send_application_received_notification(self, application_id):
             'application': application,
             'job': application.job,
             'applicant': application.applicant,
-            'site_url': get_site_url(),
-            'application_url': f"{get_site_url()}/employer/applications/{application.id}/"
+            'site_url': FRONTEND_URL,
+            'application_url': f"{FRONTEND_URL}/employer/applications/{application.id}/",
+            'site_name': SITE_NAME
         }
         
-        html_message = render_to_string('emails/application_received_employer.html', context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
+        send_html_email(
             subject=subject,
-            message=plain_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            template_name='emails/application_received_employer.html',
             recipient_list=[application.job.created_by.email],
-            fail_silently=False
+            context=context
         )
         
         # Confirmation to applicant
         subject = f'Application Submitted: {application.job.title}'
-        context['application_url'] = f"{get_site_url()}/applications/{application.id}/"
+        context['application_url'] = f"{FRONTEND_URL}/applications/{application.id}/"
         
-        html_message = render_to_string('emails/application_submitted_applicant.html', context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
+        send_html_email(
             subject=subject,
-            message=plain_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            template_name='emails/application_submitted_applicant.html',
             recipient_list=[application.applicant.email],
-            fail_silently=False
+            context=context
         )
         
         logger.info(f"Application notifications sent for application {application_id}")
@@ -160,20 +146,15 @@ def send_application_status_update(self, application_id, old_status, new_status)
             'old_status': old_status,
             'new_status': new_status,
             'status_display': dict(JobApplication.STATUS_CHOICES)[new_status],
-            'site_url': get_site_url(),
-            'application_url': f"{get_site_url()}/applications/{application.id}/"
+            'site_url': FRONTEND_URL,
+            'application_url': f"{FRONTEND_URL}/applications/{application.id}/"
         }
         
-        html_message = render_to_string('emails/application_status_update.html', context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
+        send_html_email(
             subject=subject,
-            message=plain_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            template_name='emails/application_status_update.html',
             recipient_list=[application.applicant.email],
-            fail_silently=False
+            context=context
         )
         
         logger.info(f"Application status update sent for application {application_id}")
@@ -222,20 +203,19 @@ def send_individual_job_alert(self, alert_id):
             'alert': alert,
             'jobs': matching_jobs,
             'jobs_count': matching_jobs.count(),
-            'site_url': get_site_url(),
-            'unsubscribe_url': f"{get_site_url()}/alerts/{alert.id}/unsubscribe/"
+            'site_url': FRONTEND_URL,
+            'unsubscribe_url': f"{FRONTEND_URL}/alerts/{alert.id}/unsubscribe/",
+            'site_name': SITE_NAME
         }
         
         html_message = render_to_string('emails/job_alert.html', context)
         plain_message = strip_tags(html_message)
         
-        send_mail(
+        send_html_email(
             subject=subject,
-            message=plain_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            template_name='emails/job_alert.html',
             recipient_list=[alert.user.email],
-            fail_silently=False
+            context=context
         )
         
         # Mark alert as sent
@@ -376,19 +356,15 @@ def generate_employer_weekly_report(self, employer_id):
             'stats': stats,
             'top_jobs': top_jobs,
             'week_start': week_ago.strftime('%B %d, %Y'),
-            'site_url': get_site_url()
+            'site_url': FRONTEND_URL,
+            'site_name': SITE_NAME
         }
         
-        html_message = render_to_string('emails/weekly_report.html', context)
-        plain_message = strip_tags(html_message)
-        
-        send_mail(
+        send_html_email(
             subject=subject,
-            message=plain_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            template_name='emails/weekly_report.html',
             recipient_list=[employer.email],
-            fail_silently=False
+            context=context
         )
         
         logger.info(f"Weekly report sent to employer {employer_id}")
@@ -447,7 +423,7 @@ def send_bulk_email_to_applicants(job_id, subject, message, sender_id):
                 'job': job,
                 'sender': sender,
                 'message': message,
-                'site_url': get_site_url()
+                'site_url': FRONTEND_URL
             }
             
             html_message = render_to_string('emails/bulk_message.html', context)
@@ -499,7 +475,7 @@ def generate_job_analytics():
 def retry_failed_email(self, email_data):
     """Retry failed email sending"""
     try:
-        send_mail(**email_data)
+        send_html_email(**email_data)
         logger.info("Failed email retry successful")
         
     except Exception as exc:
