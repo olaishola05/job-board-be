@@ -1,15 +1,16 @@
 from celery import shared_task
-from django.core.mail import send_mail, EmailMultiAlternatives
-from django.template.loader import render_to_string
 from django.conf import settings
-from django.utils.html import strip_tags
 from django.utils import timezone
 from datetime import timedelta
 import logging
 from .models import User
+from apps.core.services import send_html_email
 
 logger = logging.getLogger(__name__)
 
+FRONTEND_URL = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+SITE_NAME = getattr(settings, 'SITE_NAME', 'Job Board Platform')
+SUPPORT_EMAIL = getattr(settings, 'SUPPORT_EMAIL', settings.DEFAULT_FROM_EMAIL)
 
 @shared_task(bind=True, max_retries=3)
 def send_verification_email(self, user):
@@ -17,35 +18,30 @@ def send_verification_email(self, user):
     Send email verification link to user
     """
     try:
-        user = User.objects.get(id=user)
+        user = User.objects.get(user=user)
 
         if user.is_verified:
             logger.info(f"User {user.email} is already verified")
             return f"User {user.email} is already verified"
         print(user.verification_token)
-        verification_url = f"{settings.FRONTEND_URL}/verify-email?token={user.verification_token}"
+        verification_url = f"{FRONTEND_URL}/verify-email?token={user.verification_token}"
         
         context = {
             'user': user,
             'verification_url': verification_url,
-            'site_name': getattr(settings, 'SITE_NAME', 'Job Board Platform'),
+            'site_name': SITE_NAME,
             'site_url': settings.FRONTEND_URL,
             'expiry_hours': 24
         }
         
-        html_content = render_to_string('emails/verification.html', context)
-        text_content = strip_tags(html_content)
-
         subject = f"Verify Your Email Address - {context['site_name']}"
 
-        msg = EmailMultiAlternatives(
+        send_html_email(
             subject=subject,
-            body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email]
+            template_name='emails/verification.html',
+            recipient_list=[user.email],
+            context=context
         )
-        msg.attach_alternative(html_content, "text/html")
-        msg.send()
         
         logger.info(f"Verification email sent to {user.email}")
         return f"Verification email sent to {user.email}"
@@ -66,31 +62,25 @@ def send_password_reset_email(self, user_id):
     """
     try:      
         user = User.objects.get(id=user_id)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={user.password_reset_token}"
+        reset_url = f"{FRONTEND_URL}/reset-password?token={user.password_reset_token}"
         
         context = {
             'user': user,
             'reset_url': reset_url,
-            'site_name': getattr(settings, 'SITE_NAME', 'Job Board Platform'),
+            'site_name': SITE_NAME,
             'site_url': settings.FRONTEND_URL,
             'expiry_hours': 24
         }
         
-        html_content = render_to_string('emails/password_reset.html', context)
-        text_content = strip_tags(html_content)
-        
         subject = f"Reset Your Password - {context['site_name']}"
-        
-        msg = EmailMultiAlternatives(
+
+        send_html_email(
             subject=subject,
-            body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email]
+            template_name='emails/password_reset.html',
+            recipient_list=[user.email],
+            context=context
         )
-        msg.attach_alternative(html_content, "text/html")
-        
-        msg.send()
-        
+
         logger.info(f"Password reset email sent to {user.email}")
         return f"Password reset email sent to {user.email}"
         
@@ -112,26 +102,20 @@ def send_password_change_confirmation(self, user_id):
         
         context = {
             'user': user,
-            'site_name': getattr(settings, 'SITE_NAME', 'Job Board Platform'),
-            'site_url': settings.FRONTEND_URL,
-            'support_email': getattr(settings, 'SUPPORT_EMAIL', settings.DEFAULT_FROM_EMAIL)
+            'site_name': SITE_NAME,
+            'site_url': FRONTEND_URL,
+            'support_email': SUPPORT_EMAIL
         }
-        
-        html_content = render_to_string('emails/password_change_confirmation.html', context)
-        text_content = strip_tags(html_content)
         
         subject = f"Your Password Has Been Changed - {context['site_name']}"
         
-        msg = EmailMultiAlternatives(
+        send_html_email(
             subject=subject,
-            body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email]
+            template_name='emails/password_change_confirmation.html',
+            recipient_list=[user.email],
+            context=context
         )
-        msg.attach_alternative(html_content, "text/html")
-        
-        msg.send()
-        
+
         logger.info(f"Password change confirmation email sent to {user.email}")
         return f"Password change confirmation email sent to {user.email}"
         
@@ -150,30 +134,24 @@ def send_welcome_email(self, user_id):
     """
     try:
         
-        user = User.objects.get(id=user_id)
+        user = User.objects.get(user=user_id)
         
         context = {
             'user': user,
-            'site_name': getattr(settings, 'SITE_NAME', 'Job Board Platform'),
-            'site_url': settings.FRONTEND_URL,
-            'dashboard_url': f"{settings.FRONTEND_URL}/dashboard",
-            'profile_url': f"{settings.FRONTEND_URL}/profile"
+            'site_name': SITE_NAME,
+            'site_url': FRONTEND_URL,
+            'dashboard_url': f"{FRONTEND_URL}/dashboard",
+            'profile_url': f"{FRONTEND_URL}/profile"
         }
         
-        html_content = render_to_string('emails/welcome.html', context)
-        text_content = strip_tags(html_content)
-        
         subject = f"Welcome to {context['site_name']}!"
-        msg = EmailMultiAlternatives(
+        send_html_email(
             subject=subject,
-            body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email]
+            template_name='emails/welcome.html',
+            recipient_list=[user.email],
+            context=context
         )
-        msg.attach_alternative(html_content, "text/html")
-        
-        msg.send()
-        
+
         logger.info(f"Welcome email sent to {user.email}")
         return f"Welcome email sent to {user.email}"
         
@@ -192,31 +170,24 @@ def send_account_locked_notification(self, user_id):
     Send notification when account is locked
     """
     try:
-        user = User.objects.get(id=user_id)
+        user = User.objects.get(user=user_id)
         
         context = {
             'user': user,
-            'site_name': getattr(settings, 'SITE_NAME', 'Job Board Platform'),
-            'site_url': settings.FRONTEND_URL,
-            'support_email': getattr(settings, 'SUPPORT_EMAIL', settings.DEFAULT_FROM_EMAIL),
+            'site_name': SITE_NAME,
+            'site_url': FRONTEND_URL,
+            'support_email': SUPPORT_EMAIL,
             'locked_until': user.account_locked_until
         }
         
-        html_content = render_to_string('emails/account_locked.html', context)
-        text_content = strip_tags(html_content)
-        
         subject = f"Account Security Alert - {context['site_name']}"
-        
-        msg = EmailMultiAlternatives(
+        send_html_email(
             subject=subject,
-            body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email]
+            template_name='emails/account_locked.html',
+            recipient_list=[user.email],
+            context=context
         )
-        msg.attach_alternative(html_content, "text/html")
-        
-        msg.send()
-        
+
         logger.info(f"Account locked notification sent to {user.email}")
         return f"Account locked notification sent to {user.email}"
         
@@ -333,7 +304,7 @@ def generate_security_report():
             'failed_by_ip': failed_by_ip,
             'locked_accounts': locked_accounts,
             'new_registrations': new_registrations,
-            'site_name': getattr(settings, 'SITE_NAME', 'Job Board Platform')
+            'site_name': SITE_NAME,
         }
         
         # Send report to admins
@@ -343,23 +314,14 @@ def generate_security_report():
         ).values_list('email', flat=True)
         
         if admin_emails:
-            # html_content = render_to_string('emails/security_report.html', context)
-            # text_content = strip_tags(html_content)
-            # 
-            # subject = f"Daily Security Report - {context['site_name']}"
-            # 
-            # for admin_email in admin_emails:
-                # msg = EmailMultiAlternatives(
-                    # subject=subject,
-                    # body=text_content,
-                    # from_email=settings.DEFAULT_FROM_EMAIL,
-                    # to=[admin_email]
-                # )
-                # msg.attach_alternative(html_content, "text/html")
-                # msg.send()
-                
-                print(context)
-        
+            subject = f"Daily Security Report - {context['site_name']}"
+            send_html_email(
+                subject=subject,
+                template_name='emails/security_report.html',
+                recipient_list=list(admin_emails),
+                context=context
+            )
+
         logger.info("Daily security report generated and sent")
         return "Daily security report generated and sent"
         
