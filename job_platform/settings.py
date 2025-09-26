@@ -264,7 +264,7 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=1, minute=0),  # Daily at 1 AM
     },
     'unlock-suspended-accounts': {
-        'task': 'apps.accounts.tasks.unlock_suspended_accounts',
+        'task': 'apps.accounts.tasks.unlock_accounts',
         'schedule': crontab(minute='*/30'),  # every 30 minutes
     },
     'generate_security_report': {
