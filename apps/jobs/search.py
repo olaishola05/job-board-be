@@ -1,4 +1,3 @@
-# apps/jobs/search.py
 from django.db.models import Q, F, Value, Case, When, IntegerField
 from django.utils import timezone
 from datetime import timedelta
