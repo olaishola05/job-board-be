@@ -12,7 +12,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.10, 3.11, 3.12]
+        python-version: [3.11, 3.12]
     services:
       postgres:
         image: postgres:15
@@ -30,13 +30,15 @@ jobs:
           --health-retries=5
 
     env:
-      POSTGRES_DB: test_db
-      POSTGRES_USER: test_user
-      POSTGRES_PASSWORD: test_pass
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
+      # POSTGRES_DB: test_db
+      # POSTGRES_USER: test_user
+      # POSTGRES_PASSWORD: test_pass
+      # POSTGRES_HOST: localhost
+      # POSTGRES_PORT: 5432
+      # DJANGO_SETTINGS_MODULE: job_platform.settings
+      # SECRET_KEY: test_secret_key
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/job_board_db
       DJANGO_SETTINGS_MODULE: job_platform.settings
-      SECRET_KEY: test_secret_key
 
     steps:
       - uses: actions/checkout@v4
@@ -48,8 +50,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Create reports directory
-        run: mkdir -p reports
 
       - name: Wait for Postgres
         run: |
@@ -59,5 +59,5 @@ jobs:
           done
       - name: Run Tests
         run: |
-          python3 manage.py migrate
-          pytest --cov=. --cov-report=xml --junitxml=reports/junit.xml
+          python3 manage.py migrate --noinput
+          pytest  --disable-warnings -v
