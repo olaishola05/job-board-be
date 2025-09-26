@@ -1,0 +1,14 @@
+% extends "emails/base_email.html" %}
+
+% block title %}Company Created - {{ site_name }}{% endblock %}
+
+{% block content %}
+  <p>Dear {{ company.created_by.first_name }},</p>
+  <p>Congratulations! Your company "{{ company.name }}" has been successfully created on {{ site_name }}.</p>
+  <p>You can now start posting jobs and attracting top talent to your organization.</p>
+{% endblock %}
+
+{% block footer %}
+  <p>Best regards,<br>
+    The {{ site_name }} Team</p>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Application Submitted - {{ job.title }}{% endblock %}
+
+{% block content %}
+<h2>Application submitted successfully!</h2>
+
+<p>Hello {{ applicant.get_full_name|default:applicant.username }},</p>
+
+<p>Thank you for your application! We've successfully submitted your application to:</p>
+
+<div class="job-card">
+  <div class="job-title">{{ job.title }}</div>
+  <div class="company-name">{{ job.company.name }}</div>
+  <div class="job-meta">
+    <strong>Location:</strong> {{ job.location }}{% if job.remote_allowed %} (Remote allowed){% endif %}<br>
+    <strong>Submitted:</strong> {{ application.applied_at|date:"F d, Y at g:i A" }}<br>
+    <strong>Application ID:</strong> #{{ application.id }}
+  </div>
+</div>
+
+<p><strong>What happens next?</strong></p>
+<ol>
+  <li>The hiring team at {{ job.company.name }} will review your application</li>
+  <li>If you're a good fit, they'll contact you directly</li>
+  <li>You can track your application status in your dashboard</li>
+</ol>
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{ application_url }}" class="button">View Application Status</a>
+</div>
+
+<p><strong>Tips while you wait:</strong></p>
+<ul>
+  <li>Keep your profile updated</li>
+  <li>Continue applying to relevant positions</li>
+  <li>Set up job alerts for similar roles</li>
+</ul>
+
+<p>Good luck with your application!</p>
+
+<p>Best regards,<br>The JobBoard Team</p>
+{% endblock %}

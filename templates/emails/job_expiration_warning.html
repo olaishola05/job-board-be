@@ -1,0 +1,38 @@
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Job Expiring Soon - {{ job.title }}{% endblock %}
+
+{% block content %}
+<h2>⚠️ Your job posting expires in {{ days_until_expiration }} day{{ days_until_expiration|pluralize }}!</h2>
+
+<p>Hello {{ job.created_by.get_full_name|default:job.created_by.username }},</p>
+
+<p>This is a reminder that your job posting will expire soon and will no longer accept applications.</p>
+
+<div class="job-card">
+  <div class="job-title">{{ job.title }}</div>
+  <div class="company-name">{{ job.company.name }}</div>
+  <div class="job-meta">
+    <strong>Application Deadline:</strong> {{ job.application_deadline|date:"F d, Y at g:i A" }}<br>
+    <strong>Current Applications:</strong> {{ job.applications_count }}<br>
+    <strong>Total Views:</strong> {{ job.views_count }}
+  </div>
+</div>
+
+<p>To keep your job active and continue receiving applications, you can:</p>
+
+<ul>
+  <li>Extend the application deadline</li>
+  <li>Edit the job posting to refresh it</li>
+  <li>Share it on social media for last-minute applications</li>
+</ul>
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{ edit_url }}" class="button">Edit Job Posting</a>
+  <a href="{{ job_url }}" class="button" style="background: #6c757d; margin-left: 10px;">View Job</a>
+</div>
+
+<p>If you've found the right candidate, you can close the job posting early from your employer dashboard.</p>
+
+<p>Best regards,<br>The JobBoard Team</p>
+{% endblock %}

@@ -1,0 +1,15 @@
+% extends "emails/base_email.html" %}
+
+% block title %}Company Rejection - {{ site_name }}{% endblock %}
+
+{% block content %}
+  <p>Dear {{ company.created_by.first_name }},</p>
+  <p>We regret to inform you that your company registration has been rejected for the following reason:</p>
+  <p><strong>{{ reason }}</strong></p>
+  <p>If you believe this is an error, please contact our support team.</p>
+{% endblock %}
+
+{% block footer %}
+  <p>Best regards,<br>
+    The {{ site_name }} Team</p>
+{% endblock %}
