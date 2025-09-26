@@ -11,7 +11,7 @@ from datetime import timedelta
 from .models import Company, CompanyReview, CompanyAnalytics
 from .serializers import (
     CompanyListSerializer, CompanyDetailSerializer, CompanyCreateUpdateSerializer, CompanyReviewSerializer, CompanyReviewCreateSerializer,
-    CompanyAnalyticsSerializer, CompanySearchSerializer,
+    CompanyAnalyticsSerializer,
     CompanyStatsSerializer
 )
 from apps.core.permissions import IsOwnerOrReadOnly
@@ -20,6 +20,7 @@ from apps.accounts.permissions import (
 )
 from apps.core.pagination import StandardPagination
 from .filters import CompanyFilter
+from .tasks import send_company_approved_email, notify_company_rejection, notify_company_creation
 
 class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.select_related('industry', 'created_by').prefetch_related('media')
@@ -36,6 +37,16 @@ class CompanyViewSet(viewsets.ModelViewSet):
         elif self.action in ['create', 'update', 'partial_update']:
             return CompanyCreateUpdateSerializer
         return CompanyDetailSerializer
+      
+    def get_serializer_context(self):
+        """
+        Extra context provided to the serializer class.
+        """
+        return {
+            'request': self.request,
+            'format': self.format_kwarg,
+            'view': self
+        }
 
     def get_permissions(self):
         if self.action in ['create']:
@@ -68,42 +79,12 @@ class CompanyViewSet(viewsets.ModelViewSet):
             company.is_verified = True
             company.approved_at = timezone.now()
             company.save()
+            notify_company_creation.delay(company.id)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         Company.objects.filter(pk=instance.pk).update(view_count=F('view_count') + 1)
         return super().retrieve(request, *args, **kwargs)
-
-    @action(detail=True, methods=['get', 'post'])
-    def reviews(self, request, pk=None):
-        company = self.get_object()
-        
-        if request.method == 'GET':
-            reviews = company.reviews.select_related('user').order_by('-created_at')
-            page = self.paginate_queryset(reviews)
-            serializer = CompanyReviewSerializer(page, many=True, context={'request': request})
-            return self.get_paginated_response(serializer.data)
-        
-        elif request.method == 'POST':
-            if not request.user.is_authenticated:
-                return Response({'error': 'Authentication required'}, 
-                              status=status.HTTP_401_UNAUTHORIZED)
-            
-            if CompanyReview.objects.filter(company=company, user=request.user).exists():
-                return Response({'error': 'You have already reviewed this company'}, 
-                              status=status.HTTP_400_BAD_REQUEST)
-            
-            serializer = CompanyReviewCreateSerializer(data=request.data)
-            if serializer.is_valid():
-                review = serializer.save(company=company, user=request.user)
-                
-                self._update_company_rating(company)
-                
-                response_serializer = CompanyReviewSerializer(
-                    review, context={'request': request}
-                )
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsCompanyOwnerOrAdmin])
     def analytics(self, request, pk=None):
@@ -111,56 +92,6 @@ class CompanyViewSet(viewsets.ModelViewSet):
         analytics, _ = CompanyAnalytics.objects.get_or_create(company=company)
         serializer = CompanyAnalyticsSerializer(analytics)
         return Response(serializer.data)
-
-    @action(detail=False, methods=['get'])
-    def search(self, request):
-        serializer = CompanySearchSerializer(data=request.query_params)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        data = serializer.validated_data
-        queryset = self.get_queryset()
-        
-        # Apply filters
-        if data.get('q'):
-            queryset = queryset.filter(
-                Q(name__icontains=data['q']) |
-                Q(description__icontains=data['q']) |
-                Q(location__icontains=data['q'])
-            )
-        
-        if data.get('industry'):
-            queryset = queryset.filter(industry_id=data['industry'])
-        
-        if data.get('location'):
-            queryset = queryset.filter(location__icontains=data['location'])
-        
-        if data.get('company_size'):
-            queryset = queryset.filter(company_size=data['company_size'])
-        
-        if data.get('is_verified') is not None:
-            queryset = queryset.filter(is_verified=data['is_verified'])
-        
-        if data.get('is_featured') is not None:
-            queryset = queryset.filter(is_featured=data['is_featured'])
-        
-        if data.get('min_rating'):
-            queryset = queryset.filter(rating__gte=data['min_rating'])
-        
-        if data.get('founded_year_min'):
-            queryset = queryset.filter(founded_year__gte=data['founded_year_min'])
-        
-        if data.get('founded_year_max'):
-            queryset = queryset.filter(founded_year__lte=data['founded_year_max'])
-        
-        # Apply ordering
-        ordering = data.get('ordering', '-created_at')
-        queryset = queryset.order_by(ordering)
-        
-        # Paginate results
-        page = self.paginate_queryset(queryset)
-        serializer = CompanyListSerializer(page, many=True, context={'request': request})
-        return self.get_paginated_response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -173,9 +104,11 @@ class CompanyViewSet(viewsets.ModelViewSet):
             total_companies = Company.objects.count()
             verified_companies = Company.objects.filter(is_verified=True).count()
             featured_companies = Company.objects.filter(is_featured=True).count()
+            
+            # Corrected annotation to avoid conflict with model field
             companies_with_jobs = Company.objects.annotate(
-                job_count=Count('jobs', filter=Q(jobs__status='published'))
-            ).filter(job_count__gt=0).count()
+                published_jobs_count=Count('jobs', filter=Q(jobs__status='published'))
+            ).filter(published_jobs_count__gt=0).count()
             
             # Top industries
             top_industries = Company.objects.values('industry__name').annotate(
@@ -216,6 +149,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         company.is_verified = True
         company.approved_at = timezone.now()
         company.save()
+        send_company_approved_email.delay(company.id)
         return Response({'message': 'Company approved successfully'})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminUser])
@@ -224,6 +158,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         company.approval_status = 'rejected'
         company.is_verified = False
         company.save()
+        notify_company_rejection.delay(company.id, "Your company did not meet our verification criteria.")
         return Response({'message': 'Company rejected'})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminUser])

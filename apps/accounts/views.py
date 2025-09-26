@@ -18,7 +18,7 @@ from .permissions import (
     IsOwnerOrReadOnly, IsAdminUser, IsVerifiedUser, IsActiveUser,
     IsAccountOwnerOrAdmin, CanViewUserProfile
 )
-# from .tasks import send_verification_email, send_password_reset_email
+from .tasks import send_verification_email, send_password_reset_email, send_welcome_email, send_password_change_confirmation
 from rest_framework import serializers
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -124,8 +124,7 @@ class UserRegistrationViewSet(viewsets.ModelViewSet):
                 user = serializer.save()
                 with transaction.atomic():
                     user.generate_verification_token()
-                    # send_verification_email.delay(user.user)
-                    print(user.verification_token)
+                    send_verification_email.delay(user.user)
                     return Response(
                         {
                             "message": "Registration successful. Please check your email for instructions.",
@@ -222,7 +221,7 @@ class PasswordResetViewSet(viewsets.GenericViewSet):
         try:
             user = User.objects.get(email__iexact=email, is_active=True)
             user.generate_password_reset_token()
-            # send_password_reset_email.delay(user)
+            send_password_reset_email.delay(user.user)
             print(user.password_reset_token)
             return Response(
                 {"message": "Password reset instructions sent"},
@@ -302,6 +301,7 @@ class PasswordChangeViewSet(viewsets.ModelViewSet):
                 user.last_password_change = timezone.now()
                 user.save()
                 RefreshToken.objects.filter(user=user).update(is_revoked=True)
+                send_password_change_confirmation.delay(user_id=user.user)
                 return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
             except Exception:
                 return Response({"error": "Password change failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -325,6 +325,8 @@ class EmailVerificationViewSet(viewsets.ViewSet):
             user = User.objects.get(verification_token=token)
             if user.is_token_valid('verification', token):
                 user.verify_email()
+
+                send_welcome_email.delay(user.user) # type: ignore
                 return Response({"message": "Email verified successfully"}, status=status.HTTP_200_OK)
             return Response({"error": "Verification token expired"}, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
@@ -365,7 +367,7 @@ class ResendVerificationViewSet(viewsets.ModelViewSet):
             try:
                 user = User.objects.get(email__iexact=email, is_active=True, is_verified=False)
                 user.generate_verification_token()
-                # send_verification_email.delay(user)
+                send_verification_email.delay(user.user)
                 return Response({"message": "Verification email resent"}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 return Response({"error": "No unverified account found with this email"}, status=status.HTTP_400_BAD_REQUEST)

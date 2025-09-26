@@ -44,5 +44,10 @@ def validate_salary_range(salary_min, salary_max):
     """Validate that salary_min <= salary_max"""
     if salary_min and salary_max and salary_min > salary_max:
         raise ValidationError('Minimum salary cannot be greater than maximum salary')
-      
-      
+
+def get_site_url():
+    """Get the current site URL"""
+    try:
+        return settings.FRONTEND_URL
+    except:
+        return getattr(settings, 'SITE_URL', 'http://localhost:8000')
