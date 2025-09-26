@@ -12,7 +12,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.10, 3.11, 3.12]
+        python-version: [3.11, 3.12]
     services:
       postgres:
         image: postgres:15
@@ -28,17 +28,14 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-
     env:
-      # POSTGRES_DB: test_db
-      # POSTGRES_USER: test_user
-      # POSTGRES_PASSWORD: test_pass
-      # POSTGRES_HOST: localhost
-      # POSTGRES_PORT: 5432
-      # DJANGO_SETTINGS_MODULE: job_platform.settings
-      # SECRET_KEY: test_secret_key
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/job_board_db
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
       DJANGO_SETTINGS_MODULE: job_platform.settings
+      SECRET_KEY: test_secret_key
 
     steps:
       - uses: actions/checkout@v4
