@@ -20,6 +20,7 @@ class JobSearchEngine:
         
         # Applying search query with relevance scoring
         search_query = search_params.get('q')
+        print(f"Search query: {search_query}")
         if search_query:
             queryset = self._apply_text_search(queryset, search_query)
         

@@ -27,7 +27,7 @@ class JobViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [IsAuthenticatedOrReadOnly]
     pagination_class = StandardPagination
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = JobFilter
     search_fields = ['title', 'description', 'requirements', 'company__name']
     ordering_fields = ['created_at', 'published_at', 'views_count', 'applications_count', 'application_deadline']
@@ -236,7 +236,7 @@ class JobViewSet(viewsets.ModelViewSet):
         
         serializer = JobStatsSerializer(stats)
         return Response(serializer.data)
-      
+
 class JobApplicationViewSet(viewsets.ModelViewSet):
     serializer_class = JobApplicationDetailSerializer
     permission_classes = [IsAuthenticated]
@@ -342,4 +342,3 @@ class SavedJobViewSet(viewsets.ReadOnlyModelViewSet):
             'message': f'{deleted_count} saved jobs cleared',
             'deleted_count': deleted_count
         })
-        
