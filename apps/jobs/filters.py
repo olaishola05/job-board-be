@@ -52,14 +52,8 @@ class JobFilter(django_filters.FilterSet):
     remote_only = django_filters.BooleanFilter(field_name='remote_allowed')
     
     # Job type and experience
-    job_type = django_filters.MultipleChoiceFilter(
-        choices=Job.JOB_TYPES,
-        lookup_expr='in'
-    )
-    experience_level = django_filters.MultipleChoiceFilter(
-        choices=Job.EXPERIENCE_LEVELS,
-        lookup_expr='in'
-    )
+    job_type = django_filters.CharFilter(method="filter_job_type")
+    experience_level = django_filters.CharFilter(method="filter_experience_level")
     
     # Enhanced filters that accept both IDs and names
     category = django_filters.CharFilter(method='filter_category')
@@ -238,3 +232,23 @@ class JobFilter(django_filters.FilterSet):
             cutoff_date = timezone.now() - timedelta(days=int(value))
             return queryset.filter(published_at__gte=cutoff_date)
         return queryset
+      
+    def filter_job_type(self, queryset, name, value):
+      if not value:
+        return queryset
+      values = [v.strip().lower() for v in value.split(",")]
+      mapping = {code.lower(): code for code, label in Job.JOB_TYPES}
+      label_map = {label.lower(): code for code, label in Job.JOB_TYPES}
+
+      filters = [mapping.get(v) or label_map.get(v) for v in values if v]
+      return queryset.filter(job_type__in=filters)
+
+    def filter_experience_level(self, queryset, name, value):
+      if not value:
+        return queryset
+      values = [v.strip().lower() for v in value.split(",")]
+      mapping = {code.lower(): code for code, label in Job.EXPERIENCE_LEVELS}
+      label_map = {label.lower(): code for code, label in Job.EXPERIENCE_LEVELS}
+
+      filters = [mapping.get(v) or label_map.get(v) for v in values if v]
+      return queryset.filter(experience_level__in=filters)
