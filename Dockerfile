@@ -1,4 +1,3 @@
-# Dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -17,17 +16,14 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application code
 COPY . .
 
-# Create necessary directories, users, and log files
+# Copy and make wait script executable
+COPY wait-for-db.sh /wait-for-db.sh
+RUN chmod +x /wait-for-db.sh
+
+# Create necessary directories and users
 RUN mkdir -p staticfiles media logs \
   && useradd -m -u 1000 appuser \
-  && chown -R appuser:appuser /app \
-  && ls -la /app/logs
-
-# Collect static files as root (safe, no logging yet)
-RUN python manage.py collectstatic --noinput --settings=job_platform.settings
-
-# Switch to non-root user
-USER appuser
+  && chown -R appuser:appuser /app
 
 EXPOSE 8000
 
@@ -35,4 +31,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/health/ || exit 1
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "job_platform.wsgi:application"]
+# Use wait script in command
+CMD ["/wait-for-db.sh", "db", "python", "manage.py", "migrate", "&&", "gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "job_platform.wsgi:application"]

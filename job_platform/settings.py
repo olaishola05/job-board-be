@@ -183,16 +183,6 @@ WSGI_APPLICATION = 'job_platform.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {
-    # 'default': {
-        # 'ENGINE': 'django.db.backends.postgresql',
-        # 'NAME': config('POSTGRES_DB', default='job_board_db'),
-        # 'USER': config('POSTGRES_USER', default='job_board_user'),
-        # 'PASSWORD': config('POSTGRES_PASSWORD', default='password'),
-        # 'HOST': config('POSTGRES_HOST', default='localhost'),
-        # 'PORT': config('POSTGRES_PORT', default='5432'),
-    # }
-# }
 
 DATABASES = {
     'default': {
@@ -200,20 +190,24 @@ DATABASES = {
         'NAME': config('POSTGRES_DB', default='job_board_db'),
         'USER': config('POSTGRES_USER', default='job_board_user'),
         'PASSWORD': config('POSTGRES_PASSWORD', default='password'),
-        'HOST': config('POSTGRES_HOST', default='localhost'),
+        'HOST': config('POSTGRES_HOST', default='db'),  # Changed default from 'localhost' to 'db'
         'PORT': config('POSTGRES_PORT', default='5432'),
         'CONN_MAX_AGE': config('POSTGRES_CONN_MAX_AGE', default=60, cast=int),
         'OPTIONS': {
             'connect_timeout': config('POSTGRES_CONNECT_TIMEOUT', default=10, cast=int),
             'sslmode': 'require' if config('USE_DATABASE_SSL', default=False, cast=bool) else 'disable',
         },
+        'ATOMIC_REQUESTS': True,  # Add this for better transaction handling
+        'CONN_HEALTH_CHECKS': True,  # Add this for connection health checks
     }
 }
 
+# Add database connection retry logic
 DATABASE_POOL_ARGS = {
     'max_overflow': 10,
     'pool_size': 5,
     'recycle': -1,
+    'pre_ping': True,  # Add this to handle stale connections
 }
 
 # Password validation
