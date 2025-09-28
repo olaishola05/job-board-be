@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from datetime import timedelta
 import os
 from pathlib import Path
-import dj_database_url
 from decouple import config, Csv
 from celery.schedules import crontab
 
@@ -184,27 +183,16 @@ WSGI_APPLICATION = 'job_platform.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {}
-if config('DATABASE_URL', default='') != '':
-    DATABASES['default'] = dj_database_url.parse(config('DATABASE_URL'), conn_max_age=600, conn_health_checks=True)
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('POSTGRES_DB', default='job_board_db'),
-            'USER': config('POSTGRES_USER'),
-            'PASSWORD': config('POSTGRES_PASSWORD'),
-            'HOST': config('POSTGRES_HOST', default='localhost'),
-            'PORT': config('POSTGRES_PORT', default='5432'),
-        },
-        
-        'OPTIONS': {
-            'connect_timeout': 60,
-            'options': '-c default_transaction_isolation=serializable'
-        },
-        'CONN_MAX_AGE': 600,
-        'CONN_HEALTH_CHECKS': True,
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('POSTGRES_DB', default='job_board_db'),
+        'USER': config('POSTGRES_USER', default='job_board_user'),
+        'PASSWORD': config('POSTGRES_PASSWORD', default='password'),
+        'HOST': config('POSTGRES_HOST', default='localhost'),
+        'PORT': config('POSTGRES_PORT', default='5432'),
     }
+}
 
 DATABASE_POOL_ARGS = {
     'max_overflow': 10,
