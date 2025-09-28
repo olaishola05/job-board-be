@@ -188,7 +188,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('POSTGRES_DB', default='job_board_db'),
-        'USER': config('POSTGRES_USER', default='job_board_user'),
+        'USER': config('POSTGRES_USER', default='postgres'),
         'PASSWORD': config('POSTGRES_PASSWORD', default='password@123'),
         'HOST': config('POSTGRES_HOST', default='db'),  # Changed default from 'localhost' to 'db'
         'PORT': config('POSTGRES_PORT', default='5432'),

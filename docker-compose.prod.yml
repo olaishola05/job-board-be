@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: job_board_db
-      POSTGRES_USER: job_board_user # Changed to match your settings
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password@123 # Changed to match your settings
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -33,7 +33,7 @@ services:
       - DEBUG=${DEBUG:-True}
       # Fix these environment variables to match your Django settings
       - POSTGRES_DB=job_board_db
-      - POSTGRES_USER=job_board_user
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password@123
       - POSTGRES_HOST=db # This is crucial - use service name
       - POSTGRES_PORT=5432
