@@ -194,8 +194,20 @@ WSGI_APPLICATION = 'job_platform.wsgi.application'
     # }
 # }
 
-DATABASES['default']['OPTIONS'] = { # type: ignore
-    'sslmode': 'require' if config('USE_DATABASE_SSL', default=False, cast=bool) else 'disable',
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('POSTGRES_DB', default='job_board_db'),
+        'USER': config('POSTGRES_USER', default='job_board_user'),
+        'PASSWORD': config('POSTGRES_PASSWORD', default='password'),
+        'HOST': config('POSTGRES_HOST', default='localhost'),
+        'PORT': config('POSTGRES_PORT', default='5432'),
+        'CONN_MAX_AGE': config('POSTGRES_CONN_MAX_AGE', default=60, cast=int),
+        'OPTIONS': {
+            'connect_timeout': config('POSTGRES_CONNECT_TIMEOUT', default=10, cast=int),
+            'sslmode': 'require' if config('USE_DATABASE_SSL', default=False, cast=bool) else 'disable',
+        },
+    }
 }
 
 DATABASE_POOL_ARGS = {
