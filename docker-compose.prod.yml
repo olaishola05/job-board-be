@@ -17,6 +17,7 @@ services:
       retries: 5
 
   web:
+    user: root
     build: .
     command: >
       bash -c "

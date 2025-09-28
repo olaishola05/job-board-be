@@ -19,7 +19,6 @@ COPY . .
 
 # Create necessary directories, users, and log files
 RUN mkdir -p staticfiles media logs \
-  && touch logs/errors.log logs/db_queries.log logs/debug.log logs/app.log logs/django.log logs/security.log \
   && useradd -m -u 1000 appuser \
   && chown -R appuser:appuser /app \
   && ls -la /app/logs
