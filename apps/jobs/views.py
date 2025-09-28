@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.core.pagination import CursorPagination, StandardPagination
 from apps.core.permissions import IsEmployerOrReadOnly, IsAdminOrReadOnly
+from apps.jobs.tests.test_jobs_views import company
 from .models import (
     Job, JobApplication, SavedJob, JobView, JobAlert,
     JobCategory, JobType, Industry, Skill
@@ -33,7 +34,7 @@ class JobViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'published_at', 'views_count', 'applications_count', 'application_deadline']
     ordering = ['-is_featured', '-published_at']
     
-    def get_serializer_class(self):
+    def get_serializer_class(self): # type: ignore
         if self.action == 'list':
             return JobListSerializer
         elif self.action in ['create', 'update', 'partial_update']:
@@ -58,14 +59,21 @@ class JobViewSet(viewsets.ModelViewSet):
         return queryset.distinct()
     
     def perform_create(self, serializer):
-        if hasattr(self.request.user, 'companies'):
-            company = self.request.user.companies.first()
-            if company:
-                serializer.save(created_by=self.request.user, company=company)
-            else:
-                serializer.save(created_by=self.request.user)
-        else:
-            serializer.save(created_by=self.request.user)
+      user = self.request.user
+      company = getattr(user, "companies", None).first() if hasattr(user, "companies") else None
+      industry = company.industry if company else None
+      category_id = serializer.validated_data.get('category')
+      category = JobCategory.objects.filter(id=category_id.id).first() if category_id else None
+      if company:
+        serializer.save(
+            created_by=user,
+            company=company,
+            industry=industry,
+            category=category
+        )
+        
+      else:
+        serializer.save(created_by=user, industry=industry, category=category)
     
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()

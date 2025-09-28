@@ -82,7 +82,7 @@ class CompanyCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = [
-            'name', 'description', 'website', 'email', 'phone', 'logo', 'banner',
+            'id', 'name', 'description', 'website', 'email', 'phone', 'logo', 'banner',
             'founded_year', 'company_size', 'employee_count', 'industry',
             'location', 'address', 'city', 'state', 'country', 'postal_code',
             'linkedin_url', 'twitter_url', 'facebook_url'

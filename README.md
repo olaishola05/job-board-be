@@ -77,7 +77,8 @@ full documentation of the ERD can be found [here](docs/ERD/erd.md).
 
 ### API Documentation
 
-- Hosted at `/api/docs`.  
+- Hosted at `/api/docs`.
+- Redoc at `/api/redoc`.  
 - Auto-generated and updated with drf-yasg.  
 
 ---
@@ -85,10 +86,12 @@ full documentation of the ERD can be found [here](docs/ERD/erd.md).
 ## Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/job-board-be.git
+
+```bash
+   git clone https://github.com/olaishola05/job-board-be.git
    cd job-board-be
    ```
+
 2. Environment Variables
 
 Create a .env file in the root directory:
@@ -97,40 +100,101 @@ Create a .env file in the root directory:
   ```
  Update the variables in the .env file as needed.
 
-2. Create a virtual environment:
+3. Create a virtual environment:
+
 ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
   ```
 
-3. Install the dependencies:
+4. Install the dependencies:
 
 ```bash
    pip install -r requirements.txt
    ```
 
-4. Create a PostgreSQL database:
+5. Create a PostgreSQL database:
 
 ```bash
-sudo -u postgres psql
-CREATE DATABASE job_board;
+login to your DB and create a database named `job_board_db`
+   CREATE DATABASE job_board_db;
   ```
 
-5. Set up the environment variables:
+6. Set up the environment variables:
    ```bash
    cp .env.example .env
    ```
 
-5. Run the migrations:
+7. Run the migrations:
 ```bash
    python manage.py migrate
    ```
 
-6. Start the development server:
+8. Create a superuser:
+```bash
+   python manage.py createsuperuser
+   ```
+
+9. (Optional) Load initial data:
+```bash
+   python manage.py seed_db
+   ```
+
+10. Start the development server:
 ```bash
    python manage.py runserver
    ```
-7. Access the application at `http://localhost:8000` and the API documentation at `http://localhost:8000/api/docs/`.
+
+## Docker Setup (Optional)
+
+```bash
+docker-compose up --build -d
+```
+
+Run migrations
+
+``` bash
+docker-compose exec web python manage.py migrate
+```
+
+Create superuser
+
+```bash
+docker-compose exec web python manage.py createsuperuser
+```
+
+Load initial data (optional)
+
+```bash
+docker-compose exec web python manage.py seed_db
+```
+
+7. Access Points
+
+- API: `<http://localhost:8000/api/v1/>`
+- Swagger Docs: `<http://localhost:8000/api/docs/>`
+
+## API Endpoints
+
+Authentication
+
+- POST /api/v1/auth/register/ - User registration
+- POST /api/v1/auth/login/ - User login
+- POST /api/v1/auth/refresh/ - Refresh JWT token
+- POST /api/v1/auth/logout/ - User logout
+
+Jobs
+
+- GET /api/v1/jobs/ - List jobs with filtering
+- POST /api/v1/jobs/ - Create job posting
+- GET /api/v1/jobs/{id}/ - Job details
+- POST /api/v1/jobs/{id}/apply/ - Apply to job
+
+Companies
+
+- GET /api/v1/companies/ - List companies
+- POST /api/v1/companies/ - Create company
+- GET /api/v1/companies/{id}/jobs/ - Company jobs
 
 ## Contributing
 Contributions are welcome! Please fork the repository and create a pull request with your changes.
@@ -138,5 +202,12 @@ Contributions are welcome! Please fork the repository and create a pull request 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Contact
-For any inquiries or support, please contact [support@jobboard.com](mailto:support@jobboard.com).
+## Author
+- Oladipupo Ishola (olaishola05) - [GitHub](https://github.com/olaishola05)
+- LinkedIn: [Oladipupo Ishola](https://www.linkedin.com/in/olaishola05/)
+
+
+## Acknowledgements
+- Inspired by best practices in backend development and job board platforms.
+- Thanks to the open-source community for the tools and libraries used in this project.
+- ALX Africa for the learning resources and support.
