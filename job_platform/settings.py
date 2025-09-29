@@ -112,19 +112,25 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ]
+else:
+    CORS_ALLOWED_ORIGINS = config(
+        'CORS_ALLOWED_ORIGINS',
+        default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev/',
+        cast=lambda v: [s.strip() for s in v.split(',')]
+    )
 
-
-CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
     "accept",
@@ -363,10 +369,14 @@ SPECTACULAR_SETTINGS = {
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     
     'SERVERS': [
-        {'url': 'http://localhost:8000', 'description': 'Development server'},
+        {
+            'url': 'http://localhost:8000' if DEBUG else config('API_BASE_URL', default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev/'),
+            'description': 'Development server' if DEBUG else 'Production server'
+        },
     ],
+
     'TAGS': [
-        {'name': 'Authentication', 'description': 'User authentication endpoints'},
+        {'name': 'Accounts', 'description': 'User authentication & Management endpoints'},
         {'name': 'Jobs', 'description': 'Job management endpoints'},
         {'name': 'Companies', 'description': 'Company management endpoints'},
         {'name': 'Applications', 'description': 'Job application endpoints'},
@@ -390,10 +400,6 @@ SWAGGER_SETTINGS = {
 }
 
 SWAGGER_USE_COMPAT_RENDERERS = False
-
-# RATELIMIT_ENABLE = True
-# RATELIMIT_USE_CACHE = 'default'
-# RATELIMIT_VIEW = 'apps.core.views.ratelimited'
 
 JOB_BOARD_SETTINGS = {
     'MAX_JOBS_PER_COMPANY': 100,

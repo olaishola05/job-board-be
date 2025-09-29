@@ -5,13 +5,13 @@ services:
     environment:
       POSTGRES_DB: job_board_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password@123 # Changed to match your settings
+      POSTGRES_PASSWORD: password@123
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - jobboard-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U job_board_user"] # Updated user
+      test: ["CMD-SHELL", "pg_isready -U job_board_user"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,11 +31,10 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=job_platform.settings
       - DEBUG=${DEBUG:-True}
-      # Fix these environment variables to match your Django settings
       - POSTGRES_DB=job_board_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password@123
-      - POSTGRES_HOST=db # This is crucial - use service name
+      - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
@@ -71,7 +70,6 @@ services:
     networks:
       - jobboard-network
 
-  # Make nginx optional for local development
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -85,7 +83,6 @@ services:
       - web
     networks:
       - jobboard-network
-    # Add profile to make nginx optional
     profiles:
       - with-nginx
 

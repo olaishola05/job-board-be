@@ -145,6 +145,13 @@ login to your DB and create a database named `job_board_db`
    python manage.py runserver
    ```
 
+11. Start the Celery worker and beat scheduler in separate terminal windows:
+
+```bash
+   celery -A job_platform worker -l INFO
+   celery -A job_platform beat -l INFO
+   ```
+
 ## Docker Setup (Optional)
 
 ```bash
@@ -169,7 +176,14 @@ Load initial data (optional)
 docker-compose exec web python manage.py seed_db
 ```
 
-7. Access Points
+Start Celery worker and beat
+
+```bash
+docker-compose exec web celery -A job_platform worker -l INFO
+docker-compose exec web celery -A job_platform beat -l INFO
+```
+
+## Access Points
 
 - API: `<http://localhost:8000/api/v1/>`
 - Swagger Docs: `<http://localhost:8000/api/docs/>`
