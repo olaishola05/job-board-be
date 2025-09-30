@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-xg3pi9e9on4btqa7_7h87a&5fxjmhmxa#7xa(ztlc^gffe(5o%')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool) != False
+DEBUG = config('DEBUG', default=False, cast=bool) != False
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
@@ -112,11 +112,11 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
-# CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -344,6 +344,7 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 ALLOWED_IMAGE_EXTENSIONS = config('ALLOWED_IMAGE_EXTENSIONS', default=['jpg', 'jpeg', 'png', 'webp'])
 ALLOWED_DOCUMENT_EXTENSIONS = config('ALLOWED_DOCUMENT_EXTENSIONS', default=['pdf', 'doc', 'docx'])
 
+API_BASE_URL = config('API_BASE_URL', default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev')
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Job Board Platform API',
@@ -367,13 +368,13 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': r'/api/v[0-9]',
     'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
-    
-    # 'SERVERS': [
-        # {
-            # # 'url': 'http://localhost:8000' if DEBUG else config('API_BASE_URL', default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev/'),
-            # 'description': 'Development server' if DEBUG else 'Production server'
-        # },
-    # ],
+    'PUBLIC_SERVER_URL': API_BASE_URL,
+    'SERVERS': [
+        {
+            'url': 'http://localhost:8000' if DEBUG else API_BASE_URL,
+            'description': 'Development server' if DEBUG else 'Production server'
+        },
+    ],
 
     'TAGS': [
         {'name': 'Accounts', 'description': 'User authentication & Management endpoints'},
