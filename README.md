@@ -155,7 +155,7 @@ login to your DB and create a database named `job_board_db`
 ## Docker Setup (Optional)
 
 ```bash
-docker-compose up --build -d
+docker-compose -f docker-compose.prod.yml up --build -d
 ```
 
 Run migrations

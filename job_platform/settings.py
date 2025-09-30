@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-xg3pi9e9on4btqa7_7h87a&5fxjmhmxa#7xa(ztlc^gffe(5o%')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool) != False
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
@@ -76,6 +76,18 @@ LOCAL_APPS = [
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
+if DEBUG:
+    # Development: Allow Browsable API and JSON
+    DEFAULT_RENDERERS = [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ]
+else:
+    # Production: ONLY allow JSON for security and stability
+    DEFAULT_RENDERERS = [
+        'rest_framework.renderers.JSONRenderer',
+    ]
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -84,10 +96,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-    ],
+    'DEFAULT_RENDERER_CLASSES': DEFAULT_RENDERERS,
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.FormParser',
@@ -344,7 +353,12 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 ALLOWED_IMAGE_EXTENSIONS = config('ALLOWED_IMAGE_EXTENSIONS', default=['jpg', 'jpeg', 'png', 'webp'])
 ALLOWED_DOCUMENT_EXTENSIONS = config('ALLOWED_DOCUMENT_EXTENSIONS', default=['pdf', 'doc', 'docx'])
 
-API_BASE_URL = config('API_BASE_URL', default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev')
+
+if DEBUG:
+    API_BASE_URL = config('API_BASE_URL', default='http://localhost:8000')
+else:
+    API_BASE_URL = config('API_BASE_URL', default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev')
+
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Job Board Platform API',
@@ -371,7 +385,7 @@ SPECTACULAR_SETTINGS = {
     'PUBLIC_SERVER_URL': API_BASE_URL,
     'SERVERS': [
         {
-            'url': 'http://localhost:8000' if DEBUG else API_BASE_URL,
+            'url': API_BASE_URL,
             'description': 'Development server' if DEBUG else 'Production server'
         },
     ],
