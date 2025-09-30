@@ -368,12 +368,12 @@ SPECTACULAR_SETTINGS = {
     'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     
-    'SERVERS': [
-        {
-            'url': 'http://localhost:8000' if DEBUG else config('API_BASE_URL', default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev/'),
-            'description': 'Development server' if DEBUG else 'Production server'
-        },
-    ],
+    # 'SERVERS': [
+        # {
+            # # 'url': 'http://localhost:8000' if DEBUG else config('API_BASE_URL', default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev/'),
+            # 'description': 'Development server' if DEBUG else 'Production server'
+        # },
+    # ],
 
     'TAGS': [
         {'name': 'Accounts', 'description': 'User authentication & Management endpoints'},
@@ -474,3 +474,6 @@ SIMPLE_JWT = {
 }
 
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
+
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
