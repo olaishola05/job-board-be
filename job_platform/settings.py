@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 from decouple import config, Csv
 from celery.schedules import crontab
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -253,6 +254,15 @@ TIME_ZONE = config('TIME_ZONE', default='UTC')
 USE_I18N = config('USE_I18N', default=True, cast=bool)
 USE_L10N = config('USE_L10N', default=True, cast=bool)
 USE_TZ = config('USE_TZ', default=True, cast=bool)
+
+if 'pytest' in sys.argv or 'test' in sys.argv:
+    # Use eager mode only during testing
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES_EXCEPTIONS = True 
+    # Optional: ensure test runner doesn't try to access the broker URL
+    CELERY_BROKER_URL = 'memory://' 
+else:
+    CELERY_TASK_ALWAYS_EAGER = False
 
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='amqp://guest@localhost//')
 # CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/3')
