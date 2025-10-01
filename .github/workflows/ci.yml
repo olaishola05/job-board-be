@@ -60,4 +60,6 @@ jobs:
         run: |
           python3 manage.py migrate --noinput
           python3 manage.py collectstatic --noinput
+          celery -A job_platform worker -l INFO --pool=solo --detach
+          celery -A job_platform beat -l INFO --detach
           pytest  --disable-warnings -v
