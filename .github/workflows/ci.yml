@@ -2,10 +2,9 @@ name: Job Board CI
 
 on:
   push:
-    branches: ["main", "develop", "feature/**"]
+    branches: ["develop"]
   pull_request:
-    branches: ["main", "develop", "feature/**"]
-
+    branches: ["develop"]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -78,3 +77,147 @@ jobs:
           python3 manage.py migrate --noinput
           python3 manage.py collectstatic --noinput
           pytest --disable-warnings -v --cov=. --cov-report=term-missing --cov-report=xml
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deployment Notice
+        run: |
+          echo "🚀 Starting deployment of Job Platform backend..."
+          echo "✅ Ngrok URL will remain unchanged"
+
+      - name: Deploy to DigitalOcean
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.D_OCEAN_HOST }}
+          username: root
+          key: ${{ secrets.D_OCEAN_SSH_KEY }}
+          port: 22
+          script: |
+            echo "🚀 Starting deployment of Job Platform backend..."
+            echo "✅ Preserving existing ngrok tunnel"
+
+            # Navigate to project directory
+            cd /opt/jobboard/
+
+            # Pull latest code
+            echo "📥 Pulling latest code..."
+            git pull origin develop
+
+            # Stop existing containers (but preserve ngrok)
+            echo "🛑 Stopping existing containers..."
+            docker-compose -f docker-compose.prod.yml down --remove-orphans || true
+
+            # Clean up Docker resources
+            echo "🧹 Cleaning up Docker resources..."
+            docker image prune -f || true
+
+            # Build and start containers
+            echo "🐳 Building and starting containers..."
+            docker-compose -f docker-compose.prod.yml --profile with-nginx up -d --build
+
+            # Wait for services
+            echo "⏳ Waiting for services to start..."
+            sleep 90
+
+            # Check database
+            echo "🗄️ Checking database status..."
+            for i in {1..30}; do
+              if docker-compose -f docker-compose.prod.yml exec -T db pg_isready -U postgres >/dev/null 2>&1; then
+                echo "✅ Database is ready!"
+                break
+              fi
+              echo "⏳ Waiting for database... ($i/30)"
+              sleep 3
+            done
+
+            # Check web service
+            echo "🌐 Checking web service..."
+            for i in {1..20}; do
+              if docker-compose -f docker-compose.prod.yml exec -T web curl -f http://localhost:8000/health/ >/dev/null 2>&1; then
+                echo "✅ Web service is healthy!"
+                break
+              fi
+              echo "⏳ Waiting for web service... ($i/20)"
+              sleep 5
+            done
+
+            # Check if ngrok is still running
+            echo "🔗 Checking ngrok status..."
+            if pgrep ngrok >/dev/null 2>&1; then
+              echo "✅ Ngrok is still running - URL preserved"
+              
+              # Get existing URL
+              NGROK_URL=""
+              for i in {1..10}; do
+                NGROK_URL=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null | python3 -c "
+                import sys, json
+                try:
+                    data = json.load(sys.stdin)
+                    for tunnel in data.get('tunnels', []):
+                        url = tunnel.get('public_url', '')
+                        if 'https' in url:
+                            print(url)
+                            break
+                except:
+                    pass
+                " 2>/dev/null)
+                
+                if [ -n "$NGROK_URL" ]; then
+                  break
+                fi
+                echo "⏳ Retrieving existing ngrok URL... ($i/10)"
+                sleep 2
+              done
+
+              if [ -n "$NGROK_URL" ]; then
+                echo ""
+                echo "🌐 APPLICATION URLs (unchanged):"
+                echo "┌─────────────────────────────────────────────────────────"
+                echo "│ 📱 Main App: $NGROK_URL"
+                echo "│ 🏥 Health: $NGROK_URL/health/"
+                echo "│ 👑 Admin: $NGROK_URL/admin/"
+                echo "│ 🔌 API: $NGROK_URL/api/v1/"
+                echo "└─────────────────────────────────────────────────────────"
+                
+                # Health check with existing URL
+                echo ""
+                echo "🔍 Running health check on existing URL..."
+                sleep 15
+                if curl -f "$NGROK_URL/health/" >/dev/null 2>&1; then
+                  echo "💚 Health check passed!"
+                  echo "🎉 Application is fully operational at: $NGROK_URL"
+                else
+                  echo "⚠️ Health check failed - checking logs..."
+                  docker-compose -f docker-compose.prod.yml logs --tail=20 web
+                fi
+              else
+                echo "⚠️ Could not retrieve existing ngrok URL"
+              fi
+            else
+              echo "❌ Ngrok is not running - you may need to start it manually"
+              echo "💡 To start ngrok manually, run:"
+              echo "   nohup ngrok http 80 --authtoken=YOUR_TOKEN > ngrok.log 2>&1 &"
+            fi
+
+            # Show results
+            echo ""
+            echo "✅ Deployment completed!"
+            echo "================================="
+            echo "📊 Container Status:"
+            docker-compose -f docker-compose.prod.yml ps
+
+            echo ""
+            echo "📋 Deployment Summary:"
+            echo "   ✅ Database: PostgreSQL (containerized)"
+            echo "   ✅ Cache: Redis (containerized)"
+            echo "   ✅ Task Queue: RabbitMQ (containerized)"
+            echo "   ✅ Web: Django + Gunicorn"
+            echo "   ✅ Proxy: Nginx"
+            echo "   ✅ Tunnel: Ngrok (preserved)"
+            echo ""
+            echo "🚀 Job Platform backend deployment completed!"

@@ -26,6 +26,9 @@ services:
       python manage.py migrate &&
       echo 'Starting Gunicorn...' &&
       gunicorn --bind 0.0.0.0:8000 --timeout 120 --workers 1 --access-logfile - --error-logfile - job_platform.wsgi:application
+      echo 'Starting Celery...' &&
+      celery -A job_platform worker -l INFO
+      celery -A job_platform beat -l INFO
       "
     restart: unless-stopped
     environment:
