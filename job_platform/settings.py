@@ -136,7 +136,8 @@ else:
     CORS_ALLOWED_ORIGINS = config(
         'CORS_ALLOWED_ORIGINS',
         default='https://pseudoaesthetic-untrumping-angele.ngrok-free.dev/',
-        cast=lambda v: [s.strip() for s in v.split(',')]
+        # cast=lambda v: [s.strip() for s in v.split(',')],
+        cast=Csv()
     )
 
 # CORS_ALLOW_CREDENTIALS = True
