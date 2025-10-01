@@ -28,12 +28,23 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+
+      rabbitmq:
+        image: rabbitmq:3-management-alpine # Lightweight RabbitMQ image
+        ports:
+          - 5672:5672 # Standard AMQP port
+        options: >-
+          --health-cmd "rabbitmq-diagnostics check_running"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       POSTGRES_DB: test_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: test_pass
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
+      CELERY_BROKER_URL: amqp://guest:guest@localhost:5672//
       DJANGO_SETTINGS_MODULE: job_platform.settings
       SECRET_KEY: test_secret_key
 
@@ -50,16 +61,19 @@ jobs:
       - name: Create reports directory
         run: mkdir -p reports
 
-      - name: Wait for Postgres
+      - name: Wait for (Postgres and RabbitMQ)
         run: |
           until pg_isready -h localhost -p 5432 -U postgres; do
             echo "Waiting for postgres..."
+            sleep 2
+          done
+
+          until nc -z localhost 5672; do
+            echo "Waiting for RabbitMQ (5672)..."
             sleep 2
           done
       - name: Run Tests
         run: |
           python3 manage.py migrate --noinput
           python3 manage.py collectstatic --noinput
-          # celery -A job_platform worker -l INFO --pool=solo --detach
-          # celery -A job_platform beat -l INFO --detach
           pytest  --disable-warnings -v
