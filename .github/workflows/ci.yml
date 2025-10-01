@@ -59,8 +59,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Create reports directory
-        run: mkdir -p reports
-
+        run: |
+          mkdir -p reports
+          mkdir -p static
       - name: Wait for (Postgres and RabbitMQ)
         run: |
           until pg_isready -h localhost -p 5432 -U postgres; do
@@ -76,4 +77,4 @@ jobs:
         run: |
           python3 manage.py migrate --noinput
           python3 manage.py collectstatic --noinput
-          pytest  --disable-warnings -v
+          pytest --disable-warnings -v --cov=. --cov-report=term-missing --cov-report=xml
