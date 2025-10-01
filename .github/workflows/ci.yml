@@ -18,19 +18,19 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: test_pass
         ports:
           - 5432:5432
         # Add health checks so Django waits for Postgres
         options: >-
-          --health-cmd="pg_isready -U test_user -d test_db"
+          --health-cmd="pg_isready -U postgres -d test_db"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
     env:
       POSTGRES_DB: test_db
-      POSTGRES_USER: test_user
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: test_pass
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
