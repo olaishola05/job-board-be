@@ -2,6 +2,7 @@ from django.db.models import Q, F, Value, Case, When, IntegerField
 from django.utils import timezone
 from datetime import timedelta
 import re
+from .models import Job
 
 class JobSearchEngine:
     """Advanced job search with relevance scoring"""
@@ -11,7 +12,6 @@ class JobSearchEngine:
         Perform advanced job search with relevance scoring
         """
         if base_queryset is None:
-            from .models import Job
             queryset = Job.published.active()
         else:
             queryset = base_queryset
@@ -20,7 +20,6 @@ class JobSearchEngine:
         
         # Applying search query with relevance scoring
         search_query = search_params.get('q')
-        print(f"Search query: {search_query}")
         if search_query:
             queryset = self._apply_text_search(queryset, search_query)
         
@@ -28,6 +27,23 @@ class JobSearchEngine:
         queryset = self._apply_relevance_scoring(queryset, search_params)
         
         return queryset.distinct()
+      
+    def _is_uuid(self, value):
+      """Check if value is a valid UUID"""
+      try:
+          import uuid
+          uuid.UUID(value)
+          return True
+      except (ValueError, AttributeError):
+          return False
+    
+    def _is_numeric(self, value):
+      """Check if value is numeric (for integer IDs)"""
+      try:
+          int(value)
+          return True
+      except (ValueError, TypeError):
+          return False
     
     def _apply_filters(self, queryset, params):
         """Apply various filters to the queryset"""
@@ -35,9 +51,10 @@ class JobSearchEngine:
         # Location filter
         location = params.get('location')
         remote_only = params.get('remote_only')
-        
         if remote_only:
-            queryset = queryset.filter(remote_allowed=True)
+            print('Ys i am here')
+            queryset = queryset.filter(remote_allowed=remote_only)
+            
         elif location:
             queryset = queryset.filter(
                 Q(location__icontains=location) | Q(remote_allowed=True)
@@ -46,27 +63,61 @@ class JobSearchEngine:
         # Job type filter
         job_types = params.get('job_type')
         if job_types:
-            queryset = queryset.filter(job_type__in=job_types)
+            types_val = [t.strip().lower() for t in job_types.split(',')]
+            print(types_val)
+            map_keys = {key.lower(): key for key, label in Job.JOB_TYPES}
+            map_labels = {label.lower(): key for key, label in Job.JOB_TYPES}
+            
+            t_filters = [map_keys.get(t) or map_labels.get(t) for t in types_val if t]
+            queryset = queryset.filter(job_type__in=t_filters)
         
         # Experience level filter
         experience_levels = params.get('experience_level')
         if experience_levels:
-            queryset = queryset.filter(experience_level__in=experience_levels)
+          values = [v.strip().lower() for v in experience_levels.split(",")]
+          mapping = {code.lower(): code for code, label in Job.EXPERIENCE_LEVELS}
+          label_map = {label.lower(): code for code, label in Job.EXPERIENCE_LEVELS}
+          
+          filters = [mapping.get(v) or label_map.get(v) for v in values if v]
+          queryset = queryset.filter(experience_level__in=filters)
         
         # Category filter
         category = params.get('category')
         if category:
-            queryset = queryset.filter(category=category)
+            cats = [cat.strip() for cat in category.split(',')]
+            cat_query = Q()
+            
+            for cat in cats:
+              if self._is_uuid(cat) or self._is_numeric(cat):
+                cat_query |= Q(category=cat)
+              cat_query |= Q(category__name__icontains=cat)
+            queryset = queryset.filter(cat_query)
         
         # Industry filter
         industry = params.get('industry')
         if industry:
-            queryset = queryset.filter(industry=industry)
+            queries = [v.strip() for v in industry.split(',')]
+            industry_query = Q()
+            
+            for query in queries:
+              if self._is_uuid(query) or self._is_numeric(query):
+                industry_query |= Q(industry=query)
+              industry_query |= Q(industry__name__icontains=query)
+            queryset = queryset.filter(industry_query)
         
         # Company filter
         company = params.get('company')
         if company:
-            queryset = queryset.filter(company=company)
+            values = [v.strip() for v in company.split(',')]
+            company_query = Q()
+            
+            for val in values:
+              if self._is_uuid(value=val) or self._is_numeric(val):
+                company_query |= Q(company=val)
+              else:
+                company_query |= Q(company__name__icontains=val)
+                
+            queryset = queryset.filter(company_query).distinct()
         
         # Salary filters
         salary_min = params.get('salary_min')
@@ -89,12 +140,20 @@ class JobSearchEngine:
         # Skills filter
         skills = params.get('skills')
         if skills:
-            queryset = queryset.filter(skills__in=skills)
+            skills_arr = [s.strip().lower() for s in skills.split(',')]
+            skills_query = Q()
+            
+            for skill in skills_arr:
+              if self._is_uuid(skill) or self._is_numeric(skill):
+                skills_query |= Q(skills__id=skill)
+              skills_query |= Q(skills__name__icontains=skill)
+            
+            queryset = queryset.filter(skills_query).distinct()
         
         # Featured filter
         is_featured = params.get('is_featured')
         if is_featured is not None:
-            queryset = queryset.filter(is_featured=is_featured)
+            queryset = queryset.filter(is_featured__icontains=is_featured)
         
         # Posted days ago filter
         posted_days_ago = params.get('posted_days_ago')
@@ -225,6 +284,7 @@ class JobSearchEngine:
         # Remove special characters and split
         clean_query = re.sub(r'[^\w\s]', ' ', query.lower())
         terms = [term.strip() for term in clean_query.split() if len(term.strip()) > 2]
+        print(terms)
         
         # Remove common stop words
         stop_words = {
