@@ -454,3 +454,44 @@ class JobSearchSerializer(serializers.Serializer):
     skills = serializers.PrimaryKeyRelatedField(
         queryset=Skill.objects.all(), many=True, required=False
     )
+    
+from rest_framework import serializers
+# Assuming these models are imported from a .models file
+from .models import Job, JobCategory, Industry, Company, Skill 
+
+class JobResultSerializer(serializers.ModelSerializer):
+    """
+    Serializer used for outputting job search results, converting FK/M2M
+    IDs into human-readable text values.
+    """
+
+    company = serializers.StringRelatedField()
+    category = serializers.StringRelatedField()
+    industry = serializers.StringRelatedField()
+
+    skills = serializers.SlugRelatedField(
+        many=True, 
+        read_only=True, 
+        slug_field='name' # Specify 'name' as the field to return
+    )
+
+    class Meta:
+        model = Job
+        fields = [
+            'id',
+            'location',
+            'job_type',
+            'experience_level',
+            'category',
+            'industry',
+            'salary_min',
+            'salary_max',
+            'company',
+            'is_featured',
+            'skills',
+            'title',
+            'slug',
+            'description',
+            'requirements',
+            'responsibilities'
+        ]

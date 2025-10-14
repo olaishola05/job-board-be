@@ -16,7 +16,7 @@ from .serializers import (
     JobApplicationCreateSerializer, JobApplicationDetailSerializer, JobApplicationUpdateSerializer,
     SavedJobSerializer, SavedJobCreateSerializer, JobAlertCreateUpdateSerializer, JobAlertDetailSerializer, JobSearchSerializer,
     JobViewCreateSerializer, BulkJobStatusUpdateSerializer, JobStatsSerializer,
-    JobCategorySerializer, JobTypeSerializer, IndustrySerializer, SkillSerializer
+    JobCategorySerializer, JobTypeSerializer, IndustrySerializer, SkillSerializer, JobResultSerializer
 )
 from .filters import JobFilter, JobApplicationFilter
 from .search import JobSearchEngine
@@ -243,6 +243,22 @@ class JobViewSet(viewsets.ModelViewSet):
             stats['avg_views_per_job'] = 0.0
         
         serializer = JobStatsSerializer(stats)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """Search jobs with advanced filters"""
+        
+        search_params = request.query_params
+        search_engine = JobSearchEngine()
+        results = search_engine.search(search_params)
+        
+        page = self.paginate_queryset(results)
+        if page is not None:
+            serializer = JobResultSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
+        serializer = JobResultSerializer(results, many=True, context={'request': request})
         return Response(serializer.data)
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
